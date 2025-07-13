@@ -1,0 +1,418 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name=viewport content="width=device-width, initial-scale=1">
+<title>Knopa.online</title>
+<!--link rel="stylesheet" type="text/css" href="knopa.css"/-->
+<!--script type="text/javascript" src="knopa.js"></script-->
+<style>
+<!--#include file="knopa.css"-->
+</style>
+<script type="text/javascript">
+<!--#include file="knopa.js"-->
+</script>
+<script type="text/javascript">
+function say(mark) { var m = mark.replace(/\d+/,''), n = mark.replace(/(\D+)/,''); return cEnv.msgs[ cEnv.lngs.indexOf(cEnv.lang) ][ cEnv.marks.indexOf(m) ] + (n ? " "+n : ""); }
+function init()
+{
+	var s = window.location.href;
+	cEnv.lang = s.replace(/.*?lang=(\w+).*/g,"$1");
+	cEnv.tab = s.replace(/.*#(\w+)/g,"$1");
+	if (cEnv.lang==s) cEnv.lang = "ru";
+	if (cEnv.tab==s) cEnv.tab = "info";
+
+	cEnv.lngs = ['en','ru'];
+	cEnv.marks = [
+		'info','sys','wifi','cloud','modules',
+		'chck','reb!','open','save','addmod','conn','dconn','rules',
+		'sec',
+		'devinfo','fver','sdkboot','heap','chkv','uptime','rebt','fman',
+		'apssid','appass','hidden','name','measure','pwsave','autoupd','dbglvl','ctime','ntps','tz',
+		'wifissid','wifipass','wifibssid','apstatus','scanaps','scan','stationip',
+		'clserv','cluser','clpass','clconn','cl_off','cl_period','cl_const','clsync','measures',
+		'rebooted','channel','signal','security','input','output','bit','title'
+	];
+	cEnv.msgs = [
+		[
+			'Info', 'System', 'WiFi', 'Cloud', 'Devices',
+			'Check', 'Reboot', 'Open', 'Save', 'Add module', 'Connect', 'Disconnect','Edit rules...',
+			'sec',
+			'Device info', 'Firmware version', 'SDK + boot version', 'Free heap', 'Check for new version', 'Uptime', 'Reboot the device', 'File manager',
+			'AP SSID', 'AP password', 'Hidden AP', 'Device name', 'Measure period', 'Sleep mode', 'Auto update', 'Debug output', 'Knopa time', 'NTP server', 'Timezone',
+			'SSID', 'Password', 'BSSID (opt)', 'Status', 'Scan for APs', 'Scan', 'Station IP',
+			'Server', 'Login', 'Password', 'Connection', 'Off', 'Periodic', 'Constant', 'Upload period', 'measures',
+			'Device rebooted', 'Channel', 'Signal, dB', 'Security', 'input', 'output', 'bit','Title'
+		],
+		[
+			'Инфо', 'ESP', 'WiFi', 'Облако', 'Устройства',
+			'Проверить', 'Перезагрузить', 'Открыть', 'Сохранить', 'Добавить модуль', 'Подключить', 'Отключить','Редактировать правила...',
+			'сек',
+			'Тип устройства', 'Версия прошивки', 'Версия SDK и загрузчика', 'Памяти свободно', 'Новая версия', 'Время работы', 'Перезагрузка', 'Файловый менеджер',
+			'Точка доступа', 'Пароль к ней', 'Скрытая', 'Имя устройства', 'Опрос датчиков', 'Режим сна', 'Автообновление', 'Инфо в консоли', 'Системное время', 'Сервер NTP', 'Часовой пояс',
+			'SSID', 'Пароль', 'BSSID (опц.)', 'Статус', 'Доступные точки', 'Искать', 'IP адрес',
+			'Сервер', 'Логин', 'Пароль', 'Связь', 'Выкл.', 'Периодически', 'Постоянно', 'Период выгрузки', 'измерений',
+			'Устройство перезагружено', 'Канал', 'Сигнал, дБ', 'Безопасность', 'вход', 'выход', 'бит','Название'
+		]
+	];
+
+	var tabs = [{n:"info"},{n:"sys"},{n:"wifi"},{n:"cloud"},{n:"modules"}];
+	var lines = [
+		[
+			{t:"txt", fld:"devinfo"},
+			{t:"txt", fld:"fver"},
+			{t:"txt", fld:"sdkboot"},
+			{t:"txt", fld:"heap"},
+			{n:say("chkv"), t:"btn", b:say("chck"), click:"check_upd(this)"},
+			{t:"txt", fld:"uptime"},
+			{n:say("rebt"), t:"btn", b:say("reb!"), click:"reboot()"},
+			{n:say("fman"), t:"btn", b:say("open"), click:"location.href = 'files'"},
+		],
+		[
+			{t:"edit", fld:"apssid"},
+			{t:"pwd", fld:"appass"},
+			{t:"chk", fld:"hidden"},
+			{t:"edit", fld:"name"},
+			{t:"edit", fld:"measure", w:"5em", suf:say("sec")},
+			{t:"chk", fld:"pwsave"},
+			{t:"chk", fld:"autoupd"},
+			{t:"cb", fld:"dbglvl", v:"none|procs|key data|most|total"},
+			{n:"&nbsp;", t:"btn", b:say("save"), click:"save_sys()"},
+			{t:"txt", fld:"ctime"},
+			{t:"edit", fld:"ntps1"},
+			{t:"edit", fld:"ntps2"},
+			{t:"edit", fld:"ntps3"},
+			{t:"edit", fld:"tz", w:"7em"},
+			{n:"&nbsp;", t:"btn", b:say("save"), click:"save_ntp()"},
+		],
+		[
+			{t:"edit", fld:"wifissid"},
+			{t:"pwd", fld:"wifipass"},
+			{t:"edit", fld:"wifibssid"},
+			{n:"&nbsp;", t:"btn",b:say("save"), click:"save_wifi()"},
+			{t:"txt", fld:"apstatus"},
+			{t:"txt", fld:"stationip"},
+			{n:"&nbsp;", t:"btn",b:say("conn")+"|"+say("dconn"), click:"wifi_connect(!)"},
+			{n:"&nbsp;", t:"txt"},
+			{n:say("scanaps"), t:"btn", b:say("scan"), click:"wifi_scan()"},
+			{t:"2list", fld:"aps"},
+		],
+		[
+			{t:"edit", fld:"clserv1"},
+			{t:"edit", fld:"cluser1"},
+			{t:"pwd", fld:"clpass1"},
+			{t:"edit", fld:"clserv2"},
+			{t:"edit", fld:"cluser2"},
+			{t:"pwd", fld:"clpass2"},
+			{t:"cb", fld:"clconn", v:say("cl_off")+"|"+say("cl_period")+"|"+say("cl_const")},
+			{t:"edit", fld:"clsync", w:"5em", suf:say("measures")},
+			{n:"&nbsp;", t:"btn",b:say("save"), click:"save_cloud()"}
+		],
+		[
+			{n:"&nbsp;", t:"2btn",b:say("rules"), click:"edit_rules()"}, 
+			{n:"&nbsp;", t:"txt"},
+			{n:"&nbsp;", t:"2btn",b:say("addmod"), click:"module_add()"},
+			{t:"2cont", fld:"modules"},
+			{n:"&nbsp;", t:"2btn",b:say("save"), click:"save_modules()"}
+		]
+	];
+
+	cEnv.gpios = ['',1,3,4,5,12,13,14,'adc'];
+
+	$i('tabs', nsTmpl.tmplr("tabitem",tabs));
+	for (var i=0; i<tabs.length; i++) {
+		var e = document.createElement('div');
+		e.className = 'sheet';
+		var html = '<table class="tbl">' + nsTmpl.tmplr("tblrow",lines[i]) + '</table>';
+		$i(e,html);
+		$('space').appendChild(e);
+	}
+	tab_switch(cEnv.tab);
+
+	// Time
+	cEnv.ctime = Date.now()/1000|0;
+	tick();
+	setInterval(tick.bind(this),1000);
+
+	// Config
+	cEnv.gpio = [];
+	for (var i=0; i<16; i++) cEnv.gpio[i] = {id:i+1,name:i+1};
+
+	// Connection
+	setTimeout(ajaxGet.bind(this, 'summary=1&sync='+(Date.now()/1000|0), data_ready),250);
+	setInterval(status.bind(this),5000);
+}
+function status ()
+{
+	ajaxGetq('status=1', data_ready, 1);
+}
+function tick ()
+{
+	// RTC
+	++cEnv.ctime;
+	var dt = new Date(cEnv.ctime*1000);
+	dt.setSeconds(dt.getSeconds()+1);
+	function p(t) { return t<10?'0'+t:t; }
+	var d = p(dt.getDate()), m = p(dt.getMonth()+1), y = dt.getFullYear();
+	var h = p(dt.getHours()), n = p(dt.getMinutes()), s = p(dt.getSeconds());
+	$('id-ctime').innerHTML = y+'-'+m+'-'+d+' '+h+':'+n+':'+s;
+	// uptime
+	y = cEnv.uptime++;
+	d = y/86400|0; y %= 86400;
+	h = y/3600|0; y %= 3600;
+	n = y/60|0;
+	s = y%60|0;
+	$('id-uptime').innerHTML = (d?d+'d ':'')+p(h)+":"+p(n)+":"+p(s);
+}
+function data_ready (req, quiet)
+{
+	var data = pjson(req);
+	if (!data) return;
+
+	for (var name in data) {
+		if (data.hasOwnProperty(name)) {
+			var dn = data[name];
+			if (name=='tz') { var mm = Math.abs(dn%60); dn = 'GMT'+(dn>=0?'+':'')+(dn/60|0)+(mm?':'+mm+(mm<10?'0':''):''); }
+			var e = $('id-'+name);
+			if (e) {
+				if (e.tagName=='INPUT')
+					if (e.type=='checkbox') e.checked = dn;
+					else e.value = dn;
+				if (e.tagName=='SPAN') e.innerHTML = dn;
+				if (e.tagName=='SELECT') e.selectedIndex = dn;
+			}
+			cEnv[name] = dn;
+			if (name=="modules")
+				for (var i=0; i<dn.length; i++) {
+					module_add( dn[i], i+1 );
+				}
+		}
+	}
+	if (!quiet) msg("",1);
+}
+function tab_switch (name)
+{
+	var tabs = $$('.tab');
+	var shts = $$('.sheet');
+	for (var i=0; i<tabs.length; i++) {
+		tabs[i].className = tabs[i].id=="id-tab-"+name ? "tab sel" : "tab";
+		shts[i].className = tabs[i].id=="id-tab-"+name ? "sheet sel" : "sheet";
+	}
+}
+function peep (sender) {
+	var ed = sender.previousSibling.previousSibling;
+	ed.type = (ed.type=="text"?"password":"text");
+}
+function check_upd (sender)
+{
+	ajaxGet('checkupd=1', data_ready);
+}
+function do_upd (sender)
+{
+	ajaxGetq('doupd=1', upd_ready, sender);
+	msg("Downloading and installing...",1);
+}
+function upd_ready (req, sender)
+{
+	var data = pjson(req);
+	if (!data) return;
+	if (data.new_ver) {
+		msg("New firmware version available: "+data.new_ver+" ("+data.size+" Kb)",1);
+		sender.value = "Update!";
+		sender.onclick = do_upd.bind(this,sender);
+	} else msg("You have the latest firmware");
+}
+function save_sys ()
+{
+	ajaxGet('sys=1'+$vV('apssid')+$vV('appass')+$cV('hidden')+$vV('name')+$vV('measure')+$cV('pwsave')+$cV('autoupd')+$vV('dbglvl'), save_cb);
+}
+function save_wifi ()
+{
+	ajaxGet('wifi=1'+$vV('wifissid')+$vV('wifipass')+$vV('wifibssid'), save_cb);
+}
+function save_cloud ()
+{
+	ajaxGet('cloud=1'+$vV('clserv1')+$vV('cluser1')+$vV('clpass1')+$vV('clserv2')+$vV('cluser2')+$vV('clpass2')+$vV('clconn')+$vV('clsync'), save_cb);
+}
+function save_ntp ()
+{
+	ajaxGet('ntp=1'+$vV('ntps1')+$vV('ntps2')+$vV('ntps3')+$vV('tz'), save_cb);
+}
+function reboot ()
+{
+	ajaxGet('reboot=1');
+	msg(say("rebooted"));
+}
+function wifi_scan ()
+{
+	ajaxGet('scan=1', wifi_scan_cb);
+}
+function wifi_scan_cb (req)
+{
+	var data = pjson(req);
+	if (!data) return;
+	var head = { ssid:"SSID",ch:say("channel"),rssi:say("signal"), sec:say("security") };
+	data.sort(function(a,b){a.rssi|=0;b.rssi|=0;return (a.rssi<b.rssi)?1:((a.rssi>b.rssi)?-1:0);});
+	$('id-aps').innerHTML = nsTmpl.tmpl("apitem",head) + nsTmpl.tmplr("apitem",data);
+	msg();
+}
+function wifi_connect (on)
+{
+	msg("Switching WiFi...");
+	ajaxGetq('conn=1&on='+(1-on));
+}
+function save_cb (req)
+{
+	var data = pjson(req);
+	if (!data) return;
+	if (data.result="ok") msg("Saved"); else err("Error");
+}
+function module_add (obj, num)
+{
+	var e = document.createElement("div");
+	e.className = "module";
+	e.innerHTML = nsTmpl.tmpl("moddef",{});
+	$('id-modules').appendChild(e);
+	var combo = $$('.select-device',$('id-modules'));
+	combo = combo[combo.length-1];
+	combo.setAttribute('data-num', num|0);
+	combo.onchange = device_selected;
+	var index = 0;
+	if (obj) {
+		for(var i=0; i<cEnv.supported.length; i++) 
+			if (cEnv.supported[i].hwid==obj.hwid) index = i; 
+	}  
+	combo.selectedIndex = index;
+	combo.onchange({target:combo});
+	if (obj) { 
+		var p = combo.parentNode.parentNode;
+		for (var i=0; i<obj.gpios.length; i++) {
+			$$('.gpio-'+obj.gpios[i],p)[0].checked = true;
+		}
+		$$('.module-name input',p)[0].value = obj.name;
+	} else $$('input',e)[0].focus();
+}
+function device_selected (ev)
+{
+	var p = ev.target.parentNode.parentNode;
+	if (!/invalid/.test(p.className)) p.className = p.className + " invalid";
+	var i = ev.target.selectedIndex;
+	$$('.iotype',p)[0].innerHTML = say(["output","input"][cEnv.supported[i].type]);
+	$$('.iface',p)[0].innerHTML  = cEnv.supported[i].protocol;
+  $$('.module-descr',p)[0].innerHTML = cEnv.supported[i].descr;
+}
+function module_del (sender)
+{
+	$X(sender.parentNode.parentNode);
+}
+function save_modules (cb)
+{
+	var a = $$('.module',$('id-modules'));
+	var module = [];
+	for (var i=0; i<a.length; i++) {
+		var sel = $$('.select-device',a[i])[0].selectedIndex;
+		var chks = $$('.chk',a[i]);
+		var achks = [];
+		for (var g=1; g<cEnv.gpios.length; g++) if (chks[g-1].checked) achks.push( cEnv.gpios[g] );
+		module.push( { hwid:cEnv.supported[sel].hwid, gpios:achks, name:$$('.module-name input',a[i])[0].value } );
+	}
+	console.log('modules='+encodeURIComponent(JSON.stringify(module)));
+	ajaxPost('modules='+encodeURIComponent(JSON.stringify(module)), cb?cb:save_cb);
+}
+function module_config (sender)
+{
+	function saved (module)
+	{
+		location.assign("./define.html?module="+module);
+	}
+	var n = 0;
+	var v = $$('.config-btn',$top(sender,'table'));
+	for (var i=0; i<v.length; i++)
+		if (v[i]==sender) n = i;
+	save_modules (saved.bind(this,n));
+}
+function edit_rules (sender)
+{
+	function saved (module)
+	{
+		location.assign("./rules.html");
+	}
+	save_modules (saved.bind(this));
+}
+</script>
+</head>
+<body onload="init()">
+	<div class="page">
+		<h1>Knopa.online</h1>
+		<ul id="tabs"></ul>
+		<div id="space"></div>
+		<div id="footer"><div id="err"></div><div id="msg"></div></div>
+	</div>
+</body>
+
+
+<script class="tabitem" type="text/html">
+	<li class="tab" id="id-tab-<%=n%>" onclick="tab_switch('<%=n%>')"><%=say(n)%></li>
+</script>
+<script class="tblrow" type="text/html">
+	<tr><% if (t[0]!='2') { %><td class="cell"><%=typeof(n)!='undefined'?n:say(fld)%></td><% } %><td class="cell" <%=(t[0]=='2'?'colspan=2':'')%>><%=nsTmpl.tmpl('fld_'+t.replace(/\d/,'' ),{obj:obj})%></td></tr>
+</script>
+<script class="fld_txt" type="text/html">
+	<span id="id-<%=obj.fld%>">&nbsp;</span>
+</script>
+<script class="fld_edit" type="text/html">
+	<input class="edit" type="text" id="id-<%=obj.fld%>" value="<%=obj.v%>" <%=(obj.w?'style="width:'+obj.w+';min-width:'+obj.w+'"':'')%>/><%=(obj.suf?'&nbsp;'+obj.suf:'')%>&#8203;
+</script>
+<script class="fld_pwd" type="text/html">
+	<nobr><input class="pwd" type="password" id="id-<%=obj.fld%>" value="<%=obj.v%>" <%=(obj.w?'style="width:'+obj.w+';min-width:'+obj.w+'"':'')%>/>&nbsp;<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNTEyIiBpZD0iTGF5ZXJfMSIgdmVyc2lvbj0iMSIgdmlld0JveD0iMCAwIDUxMiA1MTIiIHdpZHRoPSI1MTIiIHhtbDpzcGFjZT0icHJlc2VydmUiPjxwYXRoIGQ9Ik0yNTYgMTI4Yy04MiAwLTE0NiA0OS0yMjQgMTI4IDY3IDY4IDEyNCAxMjggMjI0IDEyOCAxMDAgMCAxNzMtNzYgMjI0LTEyN0M0MjggMTk5IDM1NSAxMjggMjU2IDEyOHpNMjU2IDM0N2MtNDkgMC05MC00MS05MC05MSAwLTUwIDQwLTkxIDkwLTkxczkwIDQxIDkwIDkxQzM0NiAzMDYgMzA1IDM0NyAyNTYgMzQ3eiIvPjxwYXRoIGQ9Ik0yNTYgMjI0YzAtOCAzLTE1IDgtMjEgLTIgMC01LTEtOC0xIC0yOSAwLTUyIDI0LTUyIDUzIDAgMjkgMjQgNTMgNTIgNTNzNTItMjQgNTItNTNjMC0yIDAtNSAwLTcgLTUgNC0xMiA3LTIwIDdDMjcwIDI1NiAyNTYgMjQyIDI1NiAyMjR6Ii8+PC9zdmc+" class="ico" onclick="peep(this)" style="vertical-align:middle;"/></nobr>
+</script>
+<script class="fld_chk" type="text/html">
+	<input type="checkbox" id="id-<%=obj.fld%>" class="chk" <%=(obj.v>0?"checked":"")%>/>&nbsp;
+</script>
+<script class="fld_cb" type="text/html">
+	<select id="id-<%=obj.fld%>">
+	<% for(var i=0,_a=obj.v.split('|');i<_a.length;i++) { %>
+	<option value="<%=i%>"><%=_a[i]%></option>;
+	<% } %>
+	</select>
+</script>
+<script class="fld_btn" type="text/html">
+	<% for(var i=0,_a=obj.b.split('|');i<_a.length;i++) { %>
+	<input type="button" class="btn" value="<%=_a[i]%>" onclick="<%=obj.click.replace('!',i)%>"/>&nbsp;
+	<% } %>
+</script>
+<script class="fld_list" type="text/html">
+	<table class="tbl" id="id-<%=obj.fld%>"></table>
+</script>
+<script class="fld_cont" type="text/html">
+	<div id="id-<%=obj.fld%>" class="container"></div>
+</script>
+<script class="selopt" type="text/html">
+	<option value="<%=hwid%>"><%=name%></option>
+</script>
+
+
+<script class="apitem" type="text/html">
+	<tr><td><b><%=ssid%></b></td><td><%=ch%></td><td><%=rssi%></td><td><%=sec%></td></tr>
+</script>
+<script class="moddef" type="text/html">
+	<div class="module-name"><div><%=say('title')%></div><input type="text"></div>
+	<div class="module-select-device"><select class="select-device"><%=nsTmpl.tmplr('selopt',cEnv.supported)%></select></div><div class="module-edit">&nbsp;<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCIgd2lkdGg9IjIwMCI+PHN0eWxlPi5he2ZpbGw6IzVFODg5RTt9PC9zdHlsZT48cGF0aCBkPSJNMTk3IDM2bC0yNyAyN2MtMyAzLTYgNC0xMCA0IC00IDAtNy0yLTEwLTRsLTctN2MtMy0zLTQtNi00LTEwczItNyA0LTEwbDI3LTI3Yy0xNy03LTM2LTMtNTAgMTAgLTE4IDE4LTE4IDQ4IDAgNjYgMTggMTggNDggMTggNjYgMEMyMDAgNzMgMjAzIDUzIDE5NyAzNnoiIGNsYXNzPSJhIi8+PHBhdGggZD0iTTUwIDEyMWwtMjggMjZjLTUgNS04IDExLTggMTkgMCA3IDMgMTQgOCAxOWwxIDFjNSA1IDEyIDggMTkgOCA3IDAgMTQtMyAxOS04bDI2LTI4TDUwIDEyMXpNNDkgMTc0Yy01IDUtMTIgNS0xNiAwIC01LTUtNS0xMiAwLTE2IDUtNSAxMi01IDE2IDBDNTMgMTYyIDUzIDE3MCA0OSAxNzR6IiBjbGFzcz0iYSIvPjxwYXRoIGQ9Ik05NCA3NmMtMiAwLTMgMS01IDJMNjAgMTA4Yy0xIDEtMiAzLTIgNSAwIDIgMSAzIDIgNWw2OCA2OGMxMSAxMSAyOSAxMSA0MCAwIDExLTExIDExLTI5IDAtNDBMOTkgNzhDOTggNzYgOTYgNzYgOTQgNzZ6TTE0MSAxNjhjMiAyIDIgNSAwIDcgLTIgMi01IDItNyAwbC01OS01OWMtMi0yLTItNSAwLTcgMi0yIDUtMiA3IDBMMTQxIDE2OHpNMTU2IDE1MmMyIDIgMiA1IDAgN3MtNSAyLTcgMGwtNTktNTljLTItMi0yLTUgMC03IDItMiA1LTIgNyAwTDE1NiAxNTJ6IiBjbGFzcz0iYSIvPjxwYXRoIGQ9Ik0xOSA1NWw3IDAgMzkgMzkgMTAtMTBMMzYgNDRsMC03YzAtMSAwLTEgMC0yIDAtMS0xLTEtMS0xTDEwIDE4IDAgMjhsMTYgMjVjMCAxIDEgMSAxIDFDMTggNTUgMTggNTUgMTkgNTV6IiBjbGFzcz0iYSIvPjwvc3ZnPg==" class="ico config-btn" onclick="module_config(this)" title="Configure module"></div><div class="module-delete">&nbsp;<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZlcnNpb249IjEuMSIgdmlld0JveD0iMCAtMC4xOSAxMTMuNTMgMTEzLjUzIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImRlZjAiIHgxPSIwLjUiIHgyPSIwLjUiIHkxPSIwIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjRjI3RTVFIi8+PHN0b3Agb2Zmc2V0PSIwLjUiIHN0b3AtY29sb3I9IiNFQjFDMjQiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNDRTIyMjkiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cGF0aCBkPSJNMCA4Ny41M0wzMC45NiA1Ni41NiAwIDI1LjYgMjUuOC0wLjE5IDU2Ljc2IDMwLjc3IDg3LjczLTAuMTkgMTEzLjUzIDI1LjYgODIuNTYgNTYuNTcgMTEzLjUzIDg3LjUzIDg3LjczIDExMy4zMyA1Ni43NyA4Mi4zNiAyNS44IDExMy4zMyAwIDg3LjUzeiIgZmlsbD0iIzk5MDAwMCIvPjxwYXRoIGQ9Ik0xMTEuNjQgODcuNTNMODAuNjggNTYuNTcgMTExLjY0IDI1LjYgODcuNzMgMS42OSA1Ni43NiAzMi42NiAyNS44IDEuNjkgMS44OCAyNS42IDMyLjg1IDU2LjU2IDEuODggODcuNTMgMjUuOCAxMTEuNDUgNTYuNzcgODAuNDggODcuNzMgMTExLjQ0IDExMS42NCA4Ny41M3oiIGZpbGw9InVybCgjZGVmMCkiLz48cGF0aCBkPSJNNTMuNTUgNDIuMTZDNjkuOTggMzYuOTIgODYuMyAzNS4wOCAxMDEuMDQgMzYuMjFMMTExLjY0IDI1LjYgODcuNzMgMS42OSA1Ni43NiAzMi42NiAyNS44IDEuNjkgMS44OSAyNS42IDI5LjAzIDUyLjc1QzM2LjUyIDQ4LjU3IDQ0Ljc0IDQ0Ljk3IDUzLjU1IDQyLjE2eiIgZmlsbD0iI0ZGRkZGRiIgZmlsbC1vcGFjaXR5PSIwLjEiLz48L3N2Zz4=" class="ico" onclick="module_del(this)" title="Delete module"/></div>
+	<div class="module-info">
+		<div class="col">
+			<span class="iotype"></span><br/>
+			<span class="iface"></span>
+		</div>
+		<div class="module-gpios"><%=nsTmpl.tmpl('gpios',{})%></div>
+	</div>
+	<div class="module-descr"></div>
+</script>
+<script class="gpios" type="text/html">
+	<% for (var ii=0; ii<cEnv.gpios.length; ii++) { %>
+	<div class="gpio"> <%=cEnv.gpios[ii]||'GPIO:'%> 
+		<br>
+		<%=(ii>0?'<input type="checkbox" class="chk gpio-'+cEnv.gpios[ii]+'">':'')%>
+		</div>
+	<% } %>
+</script>
+
+</html>

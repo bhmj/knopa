@@ -1,0 +1,113 @@
+#
+# Makefile for rBoot sample project
+# https://github.com/raburton/esp8266
+#
+
+# use wifi settings from environment or hard code them here
+WIFI_SSID ?= ""
+WIFI_PWD  ?= ""
+
+SDK_BASE	?= C:\Stream\ESP\SDK\2.0.0
+SDK_LIBDIR  = lib
+SDK_INCDIR  = include
+
+ESPTOOL      ?= "C:\Python27\python.exe" "C:\Users\Gurov.Ilya\Source\Repos\ESP\SDK\esptool-py\esptool.py"
+ESPTOOL2     ?= ../esptool2/esptool2
+FW_SECTS      = .text .data .rodata .bss
+FW_USER_ARGS  = -info -bin -boot2
+SDK_SECTS     = .xtensa.info
+SDK_USER_ARGS = -info -bin -boot2
+
+ESPPORT      ?= COM2
+
+FLASH_SIZE =
+ESPDATA_ADDR = 0x7C000
+BLANK_ADDR = 0x7E000
+ifeq ($(FLASH),512K)
+	FLASH_SIZE += --flash_size 4m
+	ESPDATA_ADDR = 0x7C000
+	BLANK_ADDR = 0x7E000
+endif
+ifeq ($(FLASH),1M)
+	FLASH_SIZE += --flash_size 8m
+	ESPDATA_ADDR = 0xFC000
+	BLANK_ADDR = 0xFE000
+endif
+ifeq ($(FLASH),2M)
+	FLASH_SIZE += --flash_size 16m
+	ESPDATA_ADDR = 0x1FC000
+	BLANK_ADDR = 0x1FE000
+endif
+ifeq ($(FLASH),4M)
+	FLASH_SIZE += --flash_size 32m
+	ESPDATA_ADDR = 0x3FC000
+	BLANK_ADDR = 0x3FE000
+endif
+
+ifndef XTENSA_BINDIR
+CC := xtensa-lx106-elf-gcc
+LD := xtensa-lx106-elf-gcc
+else
+CC := $(addprefix $(XTENSA_BINDIR)/,xtensa-lx106-elf-gcc)
+LD := $(addprefix $(XTENSA_BINDIR)/,xtensa-lx106-elf-gcc)
+endif
+
+BUILD_DIR = build
+FW_DIR    = firmware
+
+SDK_LIBDIR := $(addprefix $(SDK_BASE)/,$(SDK_LIBDIR))
+SDK_INCDIR := $(addprefix -I$(SDK_BASE)/,$(SDK_INCDIR))
+
+LIBS    = c gcc hal phy net80211 lwip wpa main pp crypto
+CFLAGS  = -Os -g -O2 -Wpointer-arith -Wundef -Werror -Wno-implicit -Wl,-EL -fno-inline-functions -nostdlib -mlongcalls  -mtext-section-literals  -D__ets__ -DICACHE_FLASH
+LDFLAGS = -nostdlib -Wl,--no-check-sections -u call_user_start -Wl,-static
+
+SRC		:= $(wildcard *.c)
+OBJ		:= $(patsubst %.c,$(BUILD_DIR)/%.o,$(SRC))
+LIBS		:= $(addprefix -l,$(LIBS))
+
+ifneq ($(WIFI_SSID), "")
+	CFLAGS += -DWIFI_SSID=\"$(WIFI_SSID)\"
+endif
+ifneq ($(WIFI_PWD), "")
+	CFLAGS += -DWIFI_PWD=\"$(WIFI_PWD)\"
+endif
+
+.SECONDARY:
+.PHONY: clean all flash
+
+C_FILES = $(wildcard *.c)
+O_FILES = $(patsubst %.c,$(BUILD_DIR)/%.o,$(C_FILES))
+
+all: $(BUILD_DIR) $(FW_DIR) $(FW_DIR)/rom0.bin $(FW_DIR)/rom1.bin $(FW_DIR)/sdk.bin
+
+$(BUILD_DIR)/%.o: %.c
+	@echo "CC $<"
+	@$(CC) -I. $(SDK_INCDIR) $(CFLAGS) -o $@ -c $<
+
+$(BUILD_DIR)/%.elf: $(O_FILES)
+	@echo "LD $(notdir $@)"
+	@$(LD) -L$(SDK_LIBDIR) -T$(notdir $(basename $@)).ld $(LDFLAGS) -Wl,--start-group $(LIBS) $^ -Wl,--end-group -o $@
+
+$(FW_DIR)/rom%.bin: $(BUILD_DIR)/rom%.elf
+	@echo "FW $(notdir $@)"
+	@$(ESPTOOL2) $(FW_USER_ARGS) $^ $@ $(FW_SECTS)
+
+$(FW_DIR)/sdk.bin: $(BUILD_DIR)/rom1.elf
+	@echo "FW $(notdir $@)"
+	@$(ESPTOOL2) $(SDK_USER_ARGS) $^ $@ $(SDK_SECTS)
+
+$(BUILD_DIR):
+	@mkdir -p $@
+
+$(FW_DIR):
+	@mkdir -p $@
+
+flash: $(FW_DIR)/rom0.bin $(FW_DIR)/rom1.bin $(FW_DIR)/sdk.bin bin/rboot.bin bin/conf.bin
+	$(ESPTOOL) --port $(ESPPORT) write_flash $(FLASH_SIZE) 0x0000 ../rboot/firmware/rboot.bin 0x1000 bin/blank.bin 0x2000 $(FW_DIR)/rom0.bin $(ESPDATA_ADDR) bin/esp_init_data_default.bin $(BLANK_ADDR) bin/blank.bin
+	C:\WinApps\Putty\Putty.exe -load "COM2 115200"
+
+clean:
+	@echo "RM $(BUILD_DIR) $(FW_DIR)"
+	@rm -rf $(BUILD_DIR)
+	@rm -rf $(FW_DIR)

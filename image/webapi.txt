@@ -1,0 +1,206 @@
+index.html
+~~~~~~~~~~
+  ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+  ³ 1. Read device info ³
+  ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+  In:
+     read=1                   // action flag
+     sync=<unix-seconds>      // set ESP real-time clock
+  Out:
+     {
+       "fver":"0.33b",                       // firmware version
+       "devinfo":"20 MHz, 4 Mb flash",       // device info
+       "sdkboot":"2.0.0 + rboot 1.5",        // SDK and boot version
+       "memfree":"24054",                    // free heap size, bytes
+       "ntps1":"ntp1.europe.net",            // NTP server 1
+       "ntps2":"ntp2.europe.net",            // NTP server 2
+       "ntps3":"ntp3.europe.net",            // NTP server 3
+       "tz":120,                             // timezone, seconds from GMT (+ or -)
+       "uptime":120,                         // time elapsed since last power-on (not deep-sleep), seconds
+       "wifissid":"HomeSweetHome",           // WiFi uplink SSID
+       "wifipass":"mypassword",              // WiFi uplink password
+       "wifibssid":"",                       // WiFi uplink base SSID
+       "apssid":"Knopa",                     // ESP access point SSID
+       "appass":"12345678",                  // ESP access point password
+       "name":"Cray-1",                      // ESP personal name
+       "measure":600,                        // Measure period, seconds
+       "pwsave":1,                           // Power save mode (sleep between measures)
+       "autoupd":0,                          // Allow automatic firmware updates
+       "dbglvl":3,                           // Output developer info in console
+       "clserv1":"cloud.knopa.online",       // Cloud 1 server
+       "cluser1":"user",                     // Cloud 1 username
+       "clpass1":"pass",                     // Cloud 1 password
+       "clserv2":"narodmon.ru:8283",         // Cloud 2 server
+       "cluser2":"user1",                    // Cloud 2 username
+       "clpass2":"password",                 // Cloud 2 password
+       "clconn":1,                           // Cloud connection: off, periodical, permanent
+       "clsync":1,                           // Cloud syncronization: every n-th measurement
+       "supported": [                        // Supported sensors and executive modules
+         {
+           "id":1,                              // module type id (unique)
+           "type":"output",                     // module types: output, input
+           "protocol":"pwm",                    // protocol: 1-wire, 1-wire*, spi, i2c, pwm, bit, adc
+           "name":"LED",                        // short name
+           "descr":"LED, 3.3 V",                // module description
+           "action":"Duty cycle",               // (for output types) name of action
+           "params":[                           // (for output types) action parameters
+             "i:duty:milliseconds",                // parameter format: "<type>:<hint>:<unit>"
+             "i:cycle:milliseconds"                // <type>: [i,s] = [integer,string], <hint>: input hint, <unit>: parameter unit
+           ]
+         },
+         ...                                    // supported hardware list continues
+       ],
+       "modules":[                              // modules currently registered in ESP
+         {
+           "id":12,                             // module type id (see above)
+           "gpios":[]                           // list of GPIOs associated. Number of GPIOs depend on module protocol (1..3)
+                                                // if the list is not filled properly, it does not work
+         },
+         {
+           "id":13,                             //
+           "gpios":[4]                          //
+         },
+         ...
+       ]
+     }
+
+  ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+  ³ 2. Read status ³
+  ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+  In:
+     status=1                 // action flag
+  Put:
+     {
+       "heap":23543,                            // free heap size, bytes
+       "apstatus":"connected to Cerberus"       // uplink status
+     }
+
+  ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+  ³ 3. Check for firmware updates ³
+  ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+  In:
+     checkupd=1               // action flag
+  Out:
+     {
+       ""
+     }
+
+  ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+  ³ 4. Save system settings ³
+  ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+  In:
+     sys=1                    // action flag
+     apssid=<AP SSID>         //
+     appass=<AP password>     //
+     name=<ESP name>          //
+     measure=<seconds>        // Measure period, seconds
+     pwsave=<1/0>             // Power save mode (sleep between measures)
+     autoupd=<1/0>            // Allow automatic firmware updates
+     dbglvl=<0..4>            // Debug info level
+  Out:
+     {
+       "result":"ok"          //
+     }
+
+  ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+  ³ 5. Save WiFi settings ³
+  ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+  In:
+     wifi=1                   // action flag
+     wifissid=<SSID>          // Uplink SSID
+     wifipass=<password>      // Uplink password
+     wifibssid=<BSSID>        // Uplink BSSID
+  Out:
+     {
+       "result":"ok"          //
+     }
+     
+  ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+  ³ 6. Save cloud ³
+  ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+  In:
+     cloud=1                  // action flag
+     clserv1=<server>         // Cloud 1 server URL
+     cluser1=<user>           // Cloud 1 username
+     clpass1=<password>       // Cloud 1 password
+     clserv2=<server>         // Cloud 2 server URL
+     cluser2=<user>           // Cloud 2 username
+     clpass2=<password>       // Cloud 2 password
+     clconn=<0/1/2>           // Cloud connection: off, periodical, permanent
+     clsync=<1..n>            // Cloud syncronization: every n-th measurement
+  Out:
+     {
+       "result":"ok"          //
+     }
+
+  ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+  ³ 7. Save NTP settings ³
+  ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+  In:
+     ntp=1                    // action flag
+     ntps1=<server>           // NTP server 1
+     ntps2=<server>           // NTP server 2
+     ntps3=<server>           // NTP server 3
+     tz=<string>              // timezone in string format (ex: "GMT+5:45")
+  Out:
+     {
+       "result":"ok"          //
+     }
+
+  ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+  ³ 8. Save modules ³
+  ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+  In:
+     modules=<string>         // module type IDs in format "<number>[ <number>]*", ex: "1 2 3"
+  Out:
+     {
+       "result":"ok"          //
+     }
+
+  ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+  ³ 9. Reboot ESP ³
+  ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+  In:
+     reboot=1                 // action flag
+  Out:
+     None
+     
+  ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+  ³ 10. Scan for nearby access points ³
+  ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+  In:
+     scan=1                   // action flag
+  Out:
+     [
+       {
+         "ssid":"AP SSID",    // AP SSID
+         "ch":6,              // Channel
+         "rssi":-12,          // RSSI, dB
+         "sec":"WPA2"         // Security
+       },
+       ...                    // list continues
+     ]
+     
+  ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+  ³ 11. Connect to / disconnect from WiFi access point ³
+  ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+  In:
+     conn=1                   // action flag
+     on=<1/0>                 // connect to / disconnect from current uplink
+  Out:
+     {
+       "result":"ok"          //
+     }
+
+

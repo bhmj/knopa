@@ -1,0 +1,338 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name=viewport content="width=device-width, initial-scale=1">
+<title>Knopa: file manager</title>
+<style>
+body {
+	margin: 0;
+	font-family: Sans-serif;
+	font-size: 15px;
+}
+#page {
+	margin:auto;
+	width:800px;
+	max-width:100%;
+}
+h1 {
+	font-family: Tahoma, Verdana;
+	font-size:2.1em;
+	padding: .1em 0 .1em .5em;
+	margin: 0 0 0.2em;
+	/*letter-spacing: 1px;*/
+	color: #FFF;
+	font-weight: bold;
+	text-shadow: -1px 0px 0 #666, 0px -1px 0 #666, 1px 0px 0 #666, 0px 1px 0 #666, -1px -1px 0 #222, -1px 1px 0 #222, 1px -1px 0 #222, 1px 1px 0 #222;
+	/* http://colorzilla.com/gradient-editor/#66cccc+0,60c1c1+60,ffffff+100 */
+	background: rgb(102,204,204);
+	background: linear-gradient(to right, rgba(96,193,193,1) 0%,rgba(96,193,193,1) 50%,rgba(234,255,255,1) 100%);
+	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#66cccc', endColorstr='#eaffff',GradientType=1 );
+}
+table#files {
+	width: 99.8%;
+	border-collapse:collapse;
+	border-spacing:0;
+	font-size:1em;
+}
+table#files td {
+	padding: .3em .5em;
+	border: 1px solid #AAA;
+}
+.foo {
+	font-weight: bold;
+	padding: .3em .5em;
+}
+table.foo td:last-child, table#files td:nth-child(2) {
+	text-align: right;
+}
+.footer {
+	text-align: center;
+    position: fixed; 
+    bottom:5%;
+    width:80%; 
+    left:50%;
+    margin-left:-40%;
+    background: rgba(55,55,55,0.5);
+    border-radius: 1em;
+}
+#err {
+	color: #653636;
+}
+#msg {
+	color: #FFF;
+}
+#err, #msg { line-height: 2em;	}
+input.val {
+	width:2.5em;
+}
+input.fname {
+	font-size:1.1em;
+	border: 1px solid transparent;
+	outline: none;
+}
+</style>
+<script type="text/javascript">
+function $(e) { return document.getElementById(e); }
+function $css(e,s) { s=s||document; return s.querySelectorAll(e); }
+function $i(e,v) { $(e).innerHTML = v; }
+function ajaxReq2(quiet, method, a)
+{
+	var url = '/files';
+	if (!quiet) msg(say('cnn')+"...");
+	var req = new XMLHttpRequest();
+	req.open(method, url+(method=='GET'?'?'+a[0]:''),true);
+	req.onreadystatechange = function() {
+		if (req.readyState == 4 && a[1]) {
+//			if (req.status == 200) a[1](req,a[2]);
+//			else a[1](req,a[2]);
+			a[1](req,a[2]);
+		}
+	}
+	req.send(method=='GET'?null:a[0]);
+}
+function ajaxGet()	{ ajaxReq2.call(this,0,'GET',arguments); }
+function ajaxPost() { ajaxReq2.call(this,1,'POST',arguments); }
+var nsTmpl = (
+	function() {
+		return {
+			cache : {},
+			tmpl : function (str, data) {
+				var strng =
+							"var p=[];with(obj){p.push('"+
+							str
+							.replace(/[\r\t\n]/g," ")
+							.replace(/^\s+</g,"<")
+							.replace(/>\s+$/g,">")
+							.replace(/>\s+</g,"><")
+							.replace(/'(?=[^%]*%>)/g,"\t")
+							.split("'").join("\\'")
+							.split("\t").join("'")
+							.replace(/<%=(.+?)%>/g, "',$1,'")
+							.split("<%").join("');")
+							.split("%>").join("p.push('")
+							+ "');}return p.join('');"
+				;
+				var fn = !/\W/.test(str) ?
+					this.cache[str] = this.cache[str] || this.tmpl(document.getElementsByClassName(str)[0].innerHTML) : new Function("obj",strng);
+				if (data) return fn(data);
+				return data ? fn(data) : fn;
+			},
+			tmplr : function (stmpl,obj)
+			{
+				var s=''
+				for (var i=0; i<(obj?obj.length:0); i++) s+=this.tmpl(stmpl,obj[i]);
+				return s;
+			}
+		}
+	}
+)();
+
+Date.prototype.format = function(fmt,magic)
+{
+	with(this){
+	if (!getTime()) return '';
+	var d = getDate(),m = getMonth()+1, y = getFullYear(), h = getHours(), n = getMinutes(), s = getSeconds();
+	}
+	fmt = fmt.replace(/dd/,d<=9?'0'+d:d).replace(/mm/,m<=9?'0'+m:m).replace(/d/,d).replace(/m/,m).replace(/yyyy/,y).replace(/yy/,y%100).replace(/hh/,h<=9?'0'+h:h).replace(/h/,h).replace(/nn/,n<=9?'0'+n:n).replace(/([^Ja|Ju])n/,'$1'+n).replace(/ss/,s<=9?'0'+s:s).replace(/s/,s);
+	return fmt;
+}
+function msg(m,e,hold)
+{
+	$i('err',e||'');
+	$i('msg',m||'');
+	if (!hold) {
+		if (e) setTimeout( function(){ $i('err','') }, 3000 );
+		if (m) setTimeout( function(){ $i('msg','') }, 3000 );
+	}
+}
+
+function pjson (req) {
+	if (!req) {
+		msg('',say('xcn'));
+		return 0;
+	}
+	try {
+		var data = eval('('+req.responseText+')');
+	} catch(e) {
+		msg('',say('xrf')+": "+req.responseText,1);
+		return 0;
+	}
+	return data;
+}
+
+var cEnv = {
+	marks : ['ttl','upl','nm','sz','dt','tot','use','dat','fre','rdy','ung','nof','del','cnn','xcn','xrf','fmt','sur','rn','rnh'],
+	msgs : [
+	['Knopa Files','Upload','Name','Size','Datetime','Total space','Used','Data','Free space','Ready','Uploading','No files','Delete','Connecting','Connection error','Response format error','Format','Are you sure?', 'Rename', 'Click file to rename...'],
+	['Файлы','Загрузить','Имя','Размер','Дата/время','Всего места','Занято','Данные','Свободно','Готово','Загружаем','Нет файлов','Удалить','Ожидание ответа','Ошибка связи','Неверный формат ответа','Форматировать','Вы уверены?', 'Переименовать', 'Нажмите на файл...']
+	],
+	lngs : ['en','ru'],
+	rename : 0
+}
+
+function say(mark) { return cEnv.msgs[ cEnv.lngs.indexOf(cEnv.lang) ][ cEnv.marks.indexOf(mark) ]; }
+
+function init()
+{
+	var s = window.location.href;
+	cEnv.lang = s.replace(/.*?lang=(\w+).*/g,"$1");
+		if (cEnv.lang==s) cEnv.lang = "ru";
+	$i('page',nsTmpl.tmpl("tpage",{}));
+	upd();
+}
+
+function upd(err)
+{
+	$("infile").value="";
+	ajaxGet('ls=1', received, err);
+}
+
+function vnum(x) {
+		return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "&nbsp;");
+}
+
+function ctrls (b)
+{
+	$('upld').disabled = $('frmt').disabled = !b;
+}
+
+function uploaded (req)
+{
+	var m = pjson(req);
+	upd(m.result);
+}
+
+function received (req,err)
+{
+	var flash = pjson(req);
+	$i('total', vnum(flash.total));
+	$i('used', vnum(flash.used));
+	$i('data', vnum(flash.data));
+	$i('free', vnum(flash.free));
+	$i('files', flash.files.length ? nsTmpl.tmpl("hfile",{}) + nsTmpl.tmplr("file",flash.files) : "<tr><td>"+say('nof')+"</td></tr>");
+	ctrls(1);
+	msg(err);
+}
+
+function upload()
+{
+	var f = $("infile");
+	if (!f.files.length) return;
+	var formData = new FormData();
+	formData.append("upload", f.files[0]);
+	msg(say('ung')+"...",'',true);
+	ctrls(0);
+	ajaxPost(formData, uploaded);
+}
+
+function del(name)
+{
+	if (confirm(say('del')+" "+name+" ?")) ajaxGet('rm='+encodeURIComponent(name), received);
+}
+
+function format()
+{
+	if (confirm(say('sur'))) {
+		msg(say('cnn')+"...");
+		ctrls(0);
+		ajaxGet('fmt', received);
+	}
+}
+
+function ren_send(btn)
+{
+	var tr = btn.parentNode.parentNode;
+	var nfname = $css("input",tr)[0].value;
+	var ofname = $css("a",tr.nextSibling)[0].text;
+	ajaxGet('rename='+encodeURIComponent(ofname)+'&into='+encodeURIComponent(nfname), ren_res, {"tr":tr,"nfname":nfname})
+}
+
+function ren_res(req, arg)
+{
+	var obj = pjson(req);
+	if (obj.result=="ok") {
+		var a = $css("a",arg.tr.nextSibling)[0];
+		a.text = arg.nfname;
+		a.href = "/"+arg.nfname; // TODO: handle directories
+		arg.tr.nextSibling.style.display = "";
+		arg.tr.parentNode.removeChild(arg.tr);
+		msg('','');
+	} else {
+		msg('',obj.result);
+	}
+}
+
+function ren_form(tr)
+{
+	var fname = $css("a",tr)[0].text;
+	var ed = document.createElement("tr");
+	ed.className = "tredit";
+	ed.innerHTML = '<td colspan="3"><input class="fname" type="text" value="'+fname+'" style="width:100%" onkeydown="ren_key(event,this)"></td><td style="width:1%"><input type="button" value="OK" onclick="ren_send(this)"></td>';
+	tr.parentNode.insertBefore(ed,tr);
+	tr.style.display = "none";
+	$css('input',ed)[0].focus();
+	return false;
+}
+
+function ren_key (ev, obj)
+{
+	if (ev.which==13 || ev.keyCode==13) {
+		ren_send(obj);
+		return false;
+	}
+	return true;
+}
+
+function rename(obj)
+{
+	cEnv.rename ^= 1;
+	var i,trs = $css("tr.frow");
+	if (cEnv.rename) {
+		$('rename-hint').innerHTML = say('rnh');
+		for (i=0; i<trs.length; i++) $css("a",trs[i])[0].onclick = ren_form.bind(this,trs[i]);
+	} else {
+		$('rename-hint').innerHTML = "";
+		for (i=0; i<trs.length; i++) {
+			trs[i].style.display="";
+			$css("a",trs[i])[0].onclick = null;
+		}
+		trs = $css("tr.tredit");
+		for (i=0; i<trs.length; i++) {
+			trs[i].parentNode.removeChild(trs[i]);
+		}
+	}
+}
+</script>
+</head>
+
+<body onload="init()">
+	<div id="page"></div>
+	<div class="footer"><div id="err"></div><div id="msg"></div></div>
+</body>
+<script class="tpage" type="text/html">
+		<h1><%=say('ttl')%></h1>
+		<div id="loader">
+		<form id="form_upload" class="foo" method="post" enctype="multipart/form-data">
+			<input id="infile" type="file" name="file">
+			<input id="upld" type="button" value="<%=say('upl')%>" onclick="upload()">
+			<br><br>
+			<input type="button" onclick="rename(this)" value="<%=say('rn')%>"/>&nbsp;<span id="rename-hint"></span>
+		</form>
+		<table id="files"></table>
+		<table class="foo">
+			<tr><td><%=say('tot')%>:</td><td id="total"></td></tr>
+			<tr><td><%=say('use')%>:</td><td id="used"></td></tr>
+			<tr><td><%=say('dat')%>:</td><td id="data"></td></tr>
+			<tr><td><%=say('fre')%>:</td><td id="free"></td></tr>
+		</table>
+		<div class="foo" style="float:right">Dump sectors&nbsp;<input class="val" type="text" id="dfr" value="00">...<input class="val" type="text" id="dto" value="7F">&nbsp;<button type="submit" id="dump"onclick="window.open('?dump&fr='+parseInt($('dfr').value,16)+'&to='+parseInt($('dto').value,16))">OK</button></div>
+		<div class="foo"><input id="frmt" type="button" value="<%=say('fmt')%>" onclick="format()"/></div>
+</script>
+<script class="hfile" type="text/html">
+	<tr class="file"><th><%=say('nm')%></th><th><%=say('sz')%></th><th><%=say('dt')%></th><th></th></tr>
+</script>
+<script class="file" type="text/html">
+	<tr class="file frow"><td><a href="/<%=encodeURI(name)%>"><%=name%></a></td><td><%=vnum(size)%></td><td><%=(new Date(dt*1000)).format("dd-mm-yyyy hh:nn:ss")%></td><td style="width:1%"><img onclick="del('<%=name%>')" src="data:image/gif;base64,R0lGODlhEAAQALMOAP8zAMopAJMAAP/M//+DIP8pAP86Av9MDP9sFP9zHv9aC/9gFf9+HJsAAP///wAAACH5BAEAAA4ALAAAAAAQABAAAARU0MlJKw3B4hrGyFP3hQNBjE5nooLJMF/3msIkJAmCeDpeU4LFQkFUCH8VwWHJRHIM0CiIMwBYryhS4XotZDuFLUAg6LLC1l/5imykgW+gU0K22C0RADs="></td></tr>
+</script>
+
+</html>

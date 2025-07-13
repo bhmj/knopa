@@ -1,0 +1,47 @@
+
+{
+  "name"        : "Pin name",
+  "descr"       : "Pin description",
+  "units"       : [
+                    { "id":0, "txt":"T, C"   },
+                    { "id":1, "txt":"Hum, %" }
+                  ],
+  "conditions"  : [
+                    { "txt":"off"  },
+                    { "txt":"on"   },
+                    { "txt":"fall" },
+                    { "txt":"rise" }
+                  ],
+  "actions"     : [
+                    // predefined actions
+                    { "id":0, "txt":"None", "name":"", "params":"" },
+                    { "id":1, "txt":"Set sleep period", "name":"ESP8266", "params":"i:seconds:sleep for#" },
+                    { "id":2, "txt":"Set measure period","name":"ESP8266", "params":"i:seconds:every #" },
+                    { "id":3, "txt":"Cloud connection","name":"ESP8266", "params":"s:off|sync|constant" },
+                    { "id":4, "txt":"Cloud sync","name":"ESP8266", "params":"i:measures:sync every #" },
+                    { "id":5, "txt":"Notification","name":"ESP8266", "params":"t:notification message" },
+                    // pin-based user actions
+                    { "id":11, "txt":"PIN 1: LED","name":"LED",params:"i:milliseconds:duty,i:milliseconds:cycle" },
+                    ...
+                  ],
+  "rules"       : [
+                    { "name":"RRR!",
+                      "unit":0,
+                      "cond":3,
+                      "ival":[25,35],
+                      "per":["0:23:00:00","0:07:00:00"],
+                      "cron":"",
+                      "act":3,
+                      "par":[1]
+                    },
+                    { "name":"MMM",
+                      "unit":1,
+                      "cond":2,
+                      "ival":[0,25],
+                      "per":["0:00:00:00","0:00:00:00"],
+                      "cron":"",
+                      "act":5,
+                      "par":["note"]
+                    }
+                  ]
+}

@@ -1,0 +1,64 @@
+#ifndef _KNOPA_JSON_H
+#define _KNOPA_JSON_H
+
+#include <c_types.h>
+#include <mem.h>         // os_malloc, os_free
+#include <osapi.h>       // os_memcpy
+#include "knopa_misc.h"
+
+enum enJsonType {
+  JSON_STRING,
+  JSON_INUMBER,
+  JSON_FNUMBER,
+  JSON_OBJECT,
+  JSON_ARRAY
+};
+
+typedef struct t_JsonValue {
+  uint8 type;
+  union {
+    char* str;
+    sint32 inum;
+    double fnum;
+    struct t_JsonObject* obj;
+    struct t_JsonArray* arr;
+  };
+  struct t_JsonValue* next;
+} t_JsonValue;
+
+typedef struct t_JsonArray {
+  t_JsonValue* val;
+} t_JsonArray;
+
+typedef struct t_JsonObject {
+  char param[16];
+  t_JsonValue* value;
+  struct t_JsonObject* next;
+} t_JsonObject;
+
+// delete json object
+void JsonDeleteObject ( t_JsonObject* p, uint8 keep_obj );
+
+// delete json value
+void JsonDeleteValue ( t_JsonValue* p );
+
+// delete json array
+void JsonDeleteArray ( t_JsonArray* p );
+
+// create json struct from url params
+void JsonizeUrlParams ( t_JsonObject* obj, char* p );
+
+// add key/value pair to object
+void JsonObjectAdd ( t_JsonObject* obj, char* param, t_JsonValue* val );
+
+// add value to array
+void JsonArrayAdd ( t_JsonArray* arr, t_JsonValue* val );
+
+// assign json value
+#define JsonValueStr(val,str)    { val.str = str; val.type = JSON_STRING; }
+#define JsonValueInt(val,i)      { val.inum = i; val.type = JSON_INUMBER; }
+#define JsonValueFloat(val,f)    { val.fnum = f; val.type = JSON_FNUMBER; }
+#define JsonValueObject(val,obj) { val.obj = obj; val.type = JSON_OBJECT; }
+#define JsonValueArray(val,arr)  { val.arr = arr; val.type = JSON_ARRAY;  }
+
+#endif

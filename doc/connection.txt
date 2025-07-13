@@ -1,0 +1,70 @@
+ÄÄÄÄÄÄ< 21.10.2016 19:43:19 >ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+Value     Decimal  Meaning
+[15-0-2]  Value
+ 000      0        Remapping : details unknown.
+ 001      1        Boot from the data received from UART0. Also
+                   includes flashing the flash memory for subsequent
+                   normal starts.
+ 010      2        Jump start
+ 011      3        Boot from flash memory (NORMAL)
+ 100      4        SDIO low speed V2
+ 101      5        SDIO high speed V1
+ 110      6        SDIO low speed V1
+ 111      7        SDIO high speed V2
+
+
+ÄÄÄÄÄÄ< 21.10.2016 20:04:50 >ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+GPIO    Risk   Pin Name     NodeMCU    Notes
+
+GPIO0   --     GPIO0_U      D3         Pin controls state of ESP8266 at boot. Caution when used as an output pin. SHOULD BE HIGH ON START
+GPIO1   ok     U0TXD_U      D10        Pin is commonly used for flashing the device.
+GPIO2   --     GPIO2_U      D4         Used for UART1 output and, as such, is likely to be used during development time for debugging. Written to when flashed with new firmware. SHOULD BE HIGH ON START
+GPIO3   ok     U0RXD_U      D9         Pin is commonly used for flashing the device.
+GPIO4   ok     GPIO4_U      D2         Only use is as a GPIO.
+GPIO5   ok     GPIO5_U      D1         Only use is as a GPIO.
+GPIO6          SD_CLK_U                Not exposed on current devices.
+GPIO7          SD_DATA0_U              Not exposed on current devices.
+GPIO8          SD_DATA1_U              Not exposed on current devices.
+GPIO9          SD_DATA2_U   SD2        Not exposed on current devices.
+GPIO10         SD_DATA3_U   SD3        Not exposed on current devices.
+GPIO11         SD_CMD_U                Not exposed on current devices.
+GPIO12  ok     MTDI_U       D6
+GPIO13  ok     MTCK_U       D7
+GPIO14  ok     MTMS_U       D5
+GPIO15  --?    MTDO_U       D8         Used to control UART0 RTS and hence may have an influence on firmware flashing since the firmware data arrives via UART0. SHOULD BE LOW ON START
+GPIO16  --                  D0         Deep sleep wakeup signal
++
+ADC     ok     ADC                     Analog to Digital Converter
+
+
+ÄÄÄÄÄÄ< 21.10.2016 20:17:27 >ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+
+   REST        * TXD
+    ADC ?      * RXD
+  CH_PD        * GPIO5
+ GPIO16        * GPIO4
+ GPIO14 *        GPIO0
+ GPIO12 *        GPIO2
+ GPIO13 *        GPIO15
+    VCC          GND
+
+ÄÄÄÄÄÄ< 21.10.2016 20:19:21 >ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+
+
+
+  VCC ¿          VCC ¿
+  GND ´ 1-wire   GND ´ i2c
+  pin Ù          pin ´
+  pin            pin Ù
+  GND            GND
+  VCC            VCC
+
+
+   v v v v
+   g g g g
+   * * * *
+   * * * A
+   g g g g
+   v v v v
+
+ÄÄÄÄÄÄ< 21.10.2016 20:39:09 >ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ

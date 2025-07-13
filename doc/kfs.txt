@@ -1,0 +1,6 @@
+kindex.2.html
+knopa.css
+knopa.js
+config.m.svg
+remove.m.svg
+eye.m.svg

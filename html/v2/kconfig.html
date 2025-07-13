@@ -1,0 +1,124 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name=viewport content="width=device-width, initial-scale=1">
+<title>Pin Config</title>
+<link rel="stylesheet" type="text/css" href="/knopa.css"/>
+<script type="text/javascript" src="/knopa.js"></script>
+<script type="text/javascript">
+function init()
+{
+  var pin = 8; //{PIN};
+  var tabs = [{n:"Rules"},{n:"Data"}];
+  var lines = [
+    [
+      {n:"&nbsp;", t:"btn", b:"Add...", click:"rule_add()"},
+      {t:"list", fld:"rule"},
+    ],
+    [
+      {n:"Buffer size", t:"edit", fld:"bufsize", w:"5em", suf:"bytes"},
+      {n:"Min/max save", t:"chk", fld:"minmax"},
+      {t:"list", fld:"data"},
+    ]
+  ];
+
+  $('tabs').innerHTML = nsTmpl.tmplr("tab",tabs);
+  tabs = $$('.tab');
+  for (var i=0; i<tabs.length; i++) {
+    var e = document.createElement('div');
+    e.className = 'sheet '+(i?'':'sel');
+    var html = '<table class="tbl">' + nsTmpl.tmplr("tblrow",lines[i]) + '</table>';
+    e.innerHTML = html;
+    $('space').appendChild(e);
+  }
+  tab_switch(tabs[0]);
+
+  // Connection
+  ajaxGet('config', 'read='+pin, data_ready);
+  ajaxGet('config', 'sync='+(Date.now()/1000|0));
+  setInterval(status.bind(this),3000);
+}
+function status ()
+{
+  ajaxGetq('/config', 'status=1', data_ready, 1);
+}
+function data_ready (req, quiet)
+{
+  var data = pjson(req);
+  if (!data) return;
+
+  for (var name in data) {
+    if (data.hasOwnProperty(name)) {
+      var dn = data[name];
+      var e = $('id-'+name);
+      if (e) {
+        if (e.tagName=='INPUT')
+          if (e.type=='checkbox') e.checked = dn;
+          else e.value = dn;
+        if (e.tagName=='SPAN') e.innerHTML = dn;
+      }
+      cEnv[name] = dn;
+    }
+  }
+  if (!quiet) msg("",1);
+}
+function tab_switch (sender)
+{
+  var tabs = $$('.tab');
+  var shts = $$('.sheet');
+  for (var i=0; i<tabs.length; i++) {
+    tabs[i].className = tabs[i]==sender ? "tab sel" : "tab";
+    shts[i].className = tabs[i]==sender ? "sheet sel" : "sheet";
+  }
+}
+function rule_add ()
+{
+  var html = $('id-rule').innerHTML;
+  var e = document.createElement("tr");
+  e.innerHTML = nsTmpl.tmpl("rule_item",cEnv.blank);
+  $('id-rule').appendChild(e);
+}
+function rule_del (sender)
+{
+  var tr = $top(sender,"tr");
+  tr.parentElement.removeChild(tr);
+}
+</script>
+</head>
+<body onload="init()">
+  <div class="page">
+    <h1>Pin Setup</h1>
+    <ul id="tabs"></ul>
+    <div id="space"></div>
+    <div id="footer"><div id="err"></div><div id="msg"></div></div>
+  </div>
+</body>
+
+<script class="tab" type="text/html">
+  <li class="tab" onclick="tab_switch(this)"><%=n%></li>
+</script>
+<script class="tblrow" type="text/html">
+  <tr class="row"><% if (t!='list') { %><td class="cell"><%=n%></td><% } %><td class="cell" <%=(t=='list'?'colspan=2':'')%>><%=nsTmpl.tmpl('fld_'+t,{obj:obj})%></td></tr>
+</script>
+<script class="fld_txt" type="text/html">
+  <span id="id-<%=obj.fld%>"></span>
+</script>
+<script class="fld_edit" type="text/html">
+  <input type="text" id="id-<%=obj.fld%>" value="<%=obj.v%>" <%=(obj.w?'style="width:'+obj.w+'"':'')%>/><%=(obj.suf?'&nbsp;'+obj.suf:'')%>
+</script>
+<script class="fld_chk" type="text/html">
+  <input type="checkbox" id="id-<%=obj.fld%>" class="chk" <%=(obj.v>0?"checked":"")%> style="transform:scale(1.5);"/>
+</script>
+<script class="fld_btn" type="text/html">
+  <% for(var i=0,_a=obj.b.split('|');i<_a.length;i++) { %>
+  <input type="button" class="btn" value="<%=_a[i]%>" onclick="<%=obj.click.replace('!',i)%>"/>&nbsp;
+  <% } %>
+</script>
+<script class="fld_list" type="text/html">
+  <table class="tbl" id="id-<%=obj.fld%>"></table>
+</script>
+<script class="rule_item" type="text/html">
+  <tr><td><div>RULE</div><div>Condition:</div></td></tr>
+</script>
+
+</html>

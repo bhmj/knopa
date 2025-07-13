@@ -1,0 +1,301 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name=viewport content="width=device-width, initial-scale=1">
+<title>Knopa.online</title>
+<link rel="stylesheet" type="text/css" href="/knopa.css"/>
+<script type="text/javascript" src="/knopa.js"></script>
+<script type="text/javascript">
+function init()
+{
+	var tabs = [{n:"Info"},{n:"System"},{n:"Time"},{n:"WiFi"},{n:"Cloud"},{n:"Pins"}];
+	var lines = [
+		[
+			{n:"Device info", t:"txt", fld:"devinfo"},
+			{n:"Firmware version", t:"txt", fld:"fver"},
+			{n:"SDK + boot version", t:"txt", fld:"sdkboot"},
+			{n:"Total memory", t:"txt", fld:"memtot"},
+			{n:"Free memory", t:"txt", fld:"memfree"},
+			{n:"Check new version", t:"btn", b:"Check", click:"check_upd(this)"},
+			{n:"Uptime", t:"txt", fld:"uptime"},
+			{n:"Restart the device", t:"btn", b:"Restart", click:"reboot()"}
+		],
+		[
+			{n:"AP SSID", t:"edit", fld:"apssid"},
+			{n:"AP password", t:"pwd", fld:"appass"},
+			{n:"Device name", t:"edit", fld:"name"},
+			{n:"Measure period", t:"edit", fld:"measure", w:"5em", suf:"sec"},
+			{n:"Sleep", t:"chk", fld:"pwsave"},
+			{n:"Auto update", t:"chk", fld:"autoupd"},
+			{n:"&nbsp;", t:"btn", b:"Save", click:"save_sys()"},
+		],
+		[
+			{n:"Knopa time", t:"txt", fld:"ctime"},
+			{n:"SNTP server 1", t:"edit", fld:"ntps1"},
+			{n:"SNTP server 2", t:"edit", fld:"ntps2"},
+			{n:"SNTP server 3", t:"edit", fld:"ntps3"},
+			{n:"Timezone", t:"edit", fld:"tz", w:"7em"},
+			{n:"&nbsp;", t:"btn", b:"Save", click:"save_ntp()"}
+		],
+		[
+			{n:"SSID", t:"edit", fld:"wifissid"},
+			{n:"Password", t:"pwd", fld:"wifipass"},
+			{n:"BSSID (opt)", t:"edit", fld:"wifibssid"},
+			{n:"&nbsp;", t:"btn",b:"Save", click:"save_wifi()"},
+			{n:"Status", t:"txt", fld:"apstatus"},
+			{n:"&nbsp;", t:"btn",b:"Connect|Disconnect", click:"wifi_connect(!)"},
+			{n:"&nbsp;", t:"txt"},
+			{n:"Scan for APs", t:"btn", b:"Scan", click:"wifi_scan()"},
+			{t:"list", fld:"aps"},
+		],
+		[
+			{n:"Server 1", t:"edit", fld:"clserv1"},
+			{n:"User", t:"edit", fld:"cluser1"},
+			{n:"Password", t:"pwd", fld:"clpass1"},
+			{n:"Server 2", t:"edit", fld:"clserv2"},
+			{n:"User", t:"edit", fld:"cluser2"},
+			{n:"Password", t:"pwd", fld:"clpass2"},
+			{n:"Connection", t:"cb", fld:"clconn", v:"Off|Sync|Constant"},
+			{n:"Sync every", t:"edit", fld:"clsync", w:"5em", suf:"measures"},
+			{n:"&nbsp;", t:"btn",b:"Save", click:"save_cloud()"}
+		],
+		[
+			{n:"&nbsp;", t:"btn",b:"Add...", click:"pin_add()"},
+			{t:"list", fld:"pins"},
+			{n:"&nbsp;", t:"btn",b:"Save", click:"save_pins()"}
+		]
+	];
+	$('tabs').innerHTML = nsTmpl.tmplr("tab",tabs);
+	tabs = $$('.tab');
+	for (var i=0; i<tabs.length; i++) {
+		var e = document.createElement('div');
+		e.className = 'sheet '+(i?'':'sel');
+		var html = '<table class="tbl">' + nsTmpl.tmplr("tblrow",lines[i]) + '</table>';
+		e.innerHTML = html;
+		$('space').appendChild(e);
+	}
+	tab_switch(tabs[0]);
+
+	// Time
+	cEnv.ctime = Date.now()/1000|0;
+	tick();
+	setInterval(tick.bind(this),1000);
+
+	// Config
+	cEnv.gpio = [];
+	for (var i=0; i<16; i++) cEnv.gpio[i] = {id:i+1,name:(i+1)};
+
+	// Connection
+	ajaxGet('/', 'read=1', data_ready);
+	ajaxGet('/', 'sync='+(Date.now()/1000|0));
+	setInterval(status.bind(this),3000);
+}
+function status ()
+{
+	ajaxGetq('/', 'status=1', data_ready, 1);
+}
+function tick ()
+{
+	// RTC
+	++cEnv.ctime;
+	var dt = new Date(cEnv.ctime*1000);
+	dt.setSeconds(dt.getSeconds()+1);
+	function p(t) { return t<10?'0'+t:t; }
+	var d = p(dt.getDate()), m = p(dt.getMonth()+1), y = dt.getFullYear();
+	var h = p(dt.getHours()), n = p(dt.getMinutes()), s = p(dt.getSeconds());
+	$('id-ctime').innerHTML = y+'-'+m+'-'+d+' '+h+':'+n+':'+s;
+	// uptime
+	y = cEnv.uptime++;
+	d = y/86400|0; y %= 86400;
+	h = y/3600|0; y %= 3600;
+	n = y/60|0;
+	s = y%60|0;
+	$('id-uptime').innerHTML = (d?d+'d ':'')+p(h)+":"+p(n)+":"+p(s);
+}
+function data_ready (req, quiet)
+{
+	var data = pjson(req);
+	if (!data) return;
+
+	for (var name in data) {
+		if (data.hasOwnProperty(name)) {
+			var dn = data[name];
+			if (name=='tz') { var mm = Math.abs(dn%60); dn = 'GMT'+(dn>=0?'+':'')+(dn/60|0)+(mm?':'+mm+(mm<10?'0':''):''); }
+			var e = $('id-'+name);
+			if (e) {
+				if (e.tagName=='INPUT')
+					if (e.type=='checkbox') e.checked = dn;
+					else e.value = dn;
+				if (e.tagName=='SPAN') e.innerHTML = dn;
+				if (e.tagName=='SELECT') e.selectedIndex = dn;
+			}
+			cEnv[name] = dn;
+		}
+	}
+	if (!quiet) msg("",1);
+}
+function tab_switch (sender)
+{
+	var tabs = $$('.tab');
+	var shts = $$('.sheet');
+	for (var i=0; i<tabs.length; i++) {
+		tabs[i].className = tabs[i]==sender ? "tab sel" : "tab";
+		shts[i].className = tabs[i]==sender ? "sheet sel" : "sheet";
+	}
+}
+function peep (sender) {
+	var ed = sender.previousSibling.previousSibling;
+	ed.type = (ed.type=="text"?"password":"text");
+	sender.className = "pin-icon"+(ed.type=="text"?" peep-red":"");
+}
+function check_upd (sender)
+{
+	ajaxGet('/','chupd=1', upd_ready, sender);
+}
+function do_upd (sender)
+{
+	ajaxGetq('/','doupd=1', upd_ready, sender);
+	msg("Downloading and installing...",1);
+}
+function upd_ready (req, sender)
+{
+	var data = pjson(req);
+	if (!data) return;
+	if (data.new_ver) {
+		msg("New firmware version available: "+data.new_ver+" ("+data.size+" Kb)",1);
+		sender.value = "Update!";
+		sender.onclick = do_upd.bind(this,sender);
+	} else msg("You have the latest firmware");
+}
+function save_sys ()
+{
+	ajaxGet('/','sys=1'+$nV('apssid')+$nV('appass')+$nV('name')+$nV('measure')+$cV('pwsave')+$cV('autoupd'), save_cb);
+}
+function save_wifi ()
+{
+	ajaxGet('/','wifi=1'+$nV('wifissid')+$nV('wifipass')+$nV('wifibssid'), save_cb);
+}
+function save_cloud ()
+{
+	ajaxGet('/','cloud=1'+$nV('clserv1')+$nV('cluser1')+$nV('clpass1')+$nV('clserv2')+$nV('cluser2')+$nV('clpass2')+$nV('clconn')+$nV('clsync'), save_cb);
+}
+function save_ntp ()
+{
+	ajaxGet('/','ntp=1'+$nV('ntps1')+$nV('ntps2')+$nV('ntps3')+$nV('tz'), save_cb);
+}
+function save_pins (cb)
+{
+	var a = $$('select',$('id-pins'));
+	cEnv.pinid = [];
+	cEnv.pintype = [];
+	for (var i=0; i<a.length; i++) {
+		if (a[i].className=='pintype') cEnv.pintype.push(a[i].value); else cEnv.pinid.push(a[i].value);
+	}
+	ajaxGet('/','pins='+cEnv.pinid.join("+")+'&types='+cEnv.pintype.join("+"), cb?cb:save_cb);
+}
+function reboot ()
+{
+	ajaxGet('/','reboot=1');
+	msg("Device rebooted");
+}
+function wifi_scan ()
+{
+	ajaxGet('/','scan=1', wifi_scan_cb);
+}
+function wifi_scan_cb (req)
+{
+	var data = pjson(req);
+	if (!data) return;
+	var head = { ssid:"SSID",ch:"Channel",rssi:"Signal, dB", sec:"Security" };
+	data.sort(function(a,b){return (a.rssi<b.rssi)?-1:((a.rssi>b.rssi)?1:0);});
+	$('id-aps').innerHTML = nsTmpl.tmpl("apitem",head) + nsTmpl.tmplr("apitem",data);
+	msg();
+}
+function wifi_connect (on)
+{
+	msg("Switching WiFi...");
+	ajaxGetq('/','conn=1&on='+(1-on));
+}
+function save_cb (req)
+{
+	var data = pjson(req);
+	if (!data) return;
+	if (data.result="ok") msg("Saved"); else err("Error");
+}
+function pin_add ()
+{
+	var a = $$('.pinnum');
+	var v = a.length ? a[a.length-1].value : 0;
+	var e = document.createElement("tr");
+	e.innerHTML = nsTmpl.tmpl("pinitem",{});
+	$$('.pinnum',e)[0].selectedIndex = v%16;
+	$('id-pins').appendChild(e);
+}
+function pin_del (sender)
+{
+	var tr = $top(sender,"tr");
+	tr.parentElement.removeChild(tr);
+}
+function pin_cfg (sender)
+{
+	function saved (sender)
+	{
+		location.href = "/kconfig.html?pin="+1;
+	}
+	save_pins (saved.bind(this,sender));
+}
+</script>
+</head>
+<body onload="init()">
+	<div class="page">
+		<h1><!--Knopa.online--></h1>
+		<ul id="tabs"></ul>
+		<div id="space"></div>
+		<div id="footer"><div id="err"></div><div id="msg"></div></div>
+	</div>
+</body>
+
+<script class="tab" type="text/html">
+	<li class="tab" onclick="tab_switch(this)"><%=n%></li>
+</script>
+<script class="tblrow" type="text/html">
+	<tr class="row"><% if (t!='list') { %><td class="cell"><%=n%></td><% } %><td class="cell" <%=(t=='list'?'colspan=2':'')%>><%=nsTmpl.tmpl('fld_'+t,{obj:obj})%></td></tr>
+</script>
+<script class="fld_txt" type="text/html">
+	<span id="id-<%=obj.fld%>"></span>
+</script>
+<script class="fld_edit" type="text/html">
+	<input class="edit" type="text" id="id-<%=obj.fld%>" value="<%=obj.v%>" <%=(obj.w?'style="width:'+obj.w+';min-width:'+obj.w+'"':'')%>/><%=(obj.suf?'&nbsp;'+obj.suf:'')%>
+</script>
+<script class="fld_pwd" type="text/html">
+	<nobr><input class="pwd" type="password" id="id-<%=obj.fld%>" value="<%=obj.v%>" <%=(obj.w?'style="width:'+obj.w+';min-width:'+obj.w+'"':'')%>/>&nbsp;<img src="/eye.m.svg" class="pin-icon" onclick="peep(this)" style="vertical-align:middle;"/></nobr>
+</script>
+<script class="fld_chk" type="text/html">
+	<input type="checkbox" id="id-<%=obj.fld%>" class="chk" <%=(obj.v>0?"checked":"")%> style="transform:scale(1.5);"/>
+</script>
+<script class="fld_cb" type="text/html">
+	<select id="id-<%=obj.fld%>">
+	<% for(var i=0,_a=obj.v.split('|');i<_a.length;i++) { %>
+	<option value="<%=i%>"><%=_a[i]%></option>;
+	<% } %>
+	</select>
+</script>
+<script class="fld_btn" type="text/html">
+	<% for(var i=0,_a=obj.b.split('|');i<_a.length;i++) { %>
+	<input type="button" class="btn" value="<%=_a[i]%>" onclick="<%=obj.click.replace('!',i)%>"/>&nbsp;
+	<% } %>
+</script>
+<script class="fld_list" type="text/html">
+	<table class="tbl" id="id-<%=obj.fld%>"></table>
+</script>
+<script class="apitem" type="text/html">
+	<tr><td><b><%=ssid%></b></td><td><%=ch%></td><td><%=rssi%></td><td><%=sec%></td></tr>
+</script>
+<script class="pinitem" type="text/html">
+	<td><select class="pinnum"><%=nsTmpl.tmplr('selopt',cEnv.gpio)%></select></td><td width="90%"><select class="pintype"><%=nsTmpl.tmplr('selopt',cEnv.hwtype)%></select></td><td><img src="/config.m.svg" class="pin-icon" onclick="pin_cfg(this)" title="Configure logic"></td><td><img src="/remove.m.svg" class="pin-icon" onclick="pin_del(this)" title="Do not use this pin"/></td>
+</script>
+<script class="selopt" type="text/html">
+	<option value="<%=id%>"><%=name%></option>
+</script>
+
+</html>

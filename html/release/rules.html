@@ -1,0 +1,403 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name=viewport content="width=device-width, initial-scale=1">
+<title>Knopa Rulez!</title>
+<style><!--#include file="knopa.css"--></style>
+<script type="text/javascript"><!--#include file="knopa.js"--></script>
+<script type="text/javascript">
+function say(mark) { var m = mark.replace(/\d+/,''), n = mark.replace(/(\D+)/,''); return cEnv.msgs[ cEnv.lngs.indexOf(cEnv.lang) ][ cEnv.marks.indexOf(m) ] + (n ? " "+n : ""); }
+function init()
+{
+	var s = window.location.href;
+	cEnv.lang = s.replace(/.*?lang=(\w+).*/g,"$1");
+	cEnv.tab = s.replace(/.*#(\w+)/g,"$1");
+	if (cEnv.lang==s) cEnv.lang = "ru";
+	if (cEnv.tab==s) cEnv.tab = "info";
+
+	cEnv.lngs = ['en','ru'];
+	cEnv.marks = [
+		'page_title',
+		'rules','data','control',
+		'add','save',
+		'code','title','conditions','case','period','cron','actions','fchars','rule_title','low','high',
+		'none','followup','sleep_period','measure_period','cloud_conn','cloud_sync','notification',
+		'delay','seconds','rule_code','sleep_for','every','off','periodic','constant','number_of','measures','sync_every','notif_msg'
+	];
+	cEnv.msgs = [
+		[
+			'Control',
+			'Rules', 'Data', 'Control',
+			'Add...','Save',
+			'Code', 'Title', 'Conditions', 'Case', 'Period', 'Cron', 'Actions', '6 chars', 'Rule title', 'Low', 'High',
+			'None', 'Followup', 'Set sleep period', 'Set measure period', 'Cloud connection', 'Cloud sync', 'Notification',
+			'delay','seconds','rule code','sleep for','every','off','periodic','constant','number of','measures','sync every','notification message'
+		],
+		[
+			'Управление',
+			'Правила', 'Данные', 'Управление',
+			'Добавить', 'Сохранить',
+			'Код', 'Название', 'Условия', 'Условие', 'Период', 'Расписание', 'Действия', '6 букв', 'Название правила', 'Низкий уровень', 'Высокий уровень',
+			'Нет', 'Следующее правило', 'Период сна', 'Период измерений', 'Тип связи с облаком', 'Отправка в облако', 'Уведомление',
+			'ждать','секунд','код:код правила','число','каждые','выкл','периодически','постоянно','каждые','измерений','каждые','текст уведомления'
+		]
+	];
+
+	var tabs = [{n:'rules'},{n:'data'},{n:'control'}];
+	var lines = [
+		[
+			{n:"&nbsp;", t:"2btn", b:say("add"), click:"rule_add()"},
+			{t:"2list", fld:"rule"},
+			{n:"&nbsp;", t:"2btn", b:say("save"), click:"rule_save()"},
+		],
+		[
+			{n:"&nbsp;", t:"txt", fld:"name"},
+			{n:"&nbsp;", t:"txt", fld:"descr"},
+		],
+		[
+			{n:"&nbsp;", t:"2btn", b:"Apply", click:"apply()"},
+			{t:"2list", fld:"data"},
+		]
+	];
+
+	cEnv.sysacts = [
+	  { aid:1, txt:say('followup'),       params:["i:"+say('delay')+":"+say('seconds'),"i:"+say('rule_code')] },
+	  { aid:2, txt:say('sleep_period'),   params:["i:"+say('sleep_for')+":"+say('seconds')] },
+	  { aid:3, txt:say('measure_period'), params:["i:"+say('every')+":"+say('seconds')] },
+	  { aid:4, txt:say('cloud_conn'),     params:["s:"+say('off')+"|"+say('periodic')+"|"+say('constant'), "i:"+say('number_of')+":"+say('measures')] },
+	  { aid:5, txt:say('cloud_sync'),     params:["i:"+say('sync_every')+":"+say('measures')] },
+	  { aid:6, txt:say('notification'),   params:["t:"+say('notif_msg')] }
+	];
+
+	$$('.page h1')[0].innerHTML = say('page_title');
+	$i('tabs',nsTmpl.tmplr("tabitem",tabs));
+	for (var i=0; i<tabs.length; i++) {
+		var e = document.createElement('div');
+		e.className = 'sheet';
+		var html = '<table class="tbl">' + nsTmpl.tmplr("tblrow",lines[i]) + '</table>';
+		$i(e,html);
+		$('space').appendChild(e);
+	}
+	tab_switch(tabs[0].n);
+
+	cEnv.binopts = [{txt:say('low')},{txt:say('high')}];
+	// Connection
+	ajaxGet('rules=1', data_ready);
+//	setInterval(status.bind(this),3000);
+}
+function data_ready (req, quiet)
+{
+	var i,v,data = pjson(req);
+	if (!data) return;
+
+	for (var name in data) {
+		if (data.hasOwnProperty(name)) {
+			var dn = data[name];
+			cEnv[name] = dn;
+			if (name=="rules")
+				for (i=0; i<dn.length; i++)
+					rule_add( dn[i] );
+		}
+	}
+	//act_sel ($$('input[value="Apply"]')[0]);
+	if (!quiet) msg("",1);
+}
+function tab_switch (name)
+{
+	var tabs = $$('.tab');
+	var shts = $$('.sheet');
+	for (var i=0; i<tabs.length; i++) {
+		tabs[i].className = tabs[i].id=="id-tab-"+name ? "tab sel" : "tab";
+		shts[i].className = tabs[i].id=="id-tab-"+name ? "sheet sel" : "sheet";
+	}
+}
+function rule_add (rule)
+{
+	var i;
+	cEnv.rule = extend(rule,{code:'',name:'',conditions:[],actions:[]});
+	var e = document.createElement("tr");
+	e.innerHTML = nsTmpl.tmpl("rule_item",cEnv);
+	$('id-rule').appendChild(e);
+	for (i=0; i<cEnv.rule.conditions.length; i++) cond_add($$('tbody.cond',e)[0], cEnv.rule.conditions[i]);
+	for (i=0; i<cEnv.rule.actions.length; i++) act_add($$('tbody.act',e)[0], cEnv.rule.actions[i]);
+	if (!rule) $$('input',e)[0].focus();
+}
+function rule_del (sender)
+{
+	var tr = $top($top(sender,"table"),"tr");
+	tr.parentElement.removeChild(tr);
+}
+function rule_save ()
+{
+	function vv (selector,n) {
+		var fn,c,e=$$(selector,this), k=e.length;
+		if (!k) return n>0 ? new Array(n) : '';
+		c = e[0].className;
+		if (c.match('time')) { fn=$PP; n=2; }
+		if (c.match('ival')) n=2;
+		if (n>1) return [fn?fn(e[0].value):e[0].value, k>1?(fn?fn(e[1].value):e[1].value):''];
+		else return e[0].value;
+	}
+	var rule = $$('table.rule');
+	var rules = [];
+	for (var r=0; r<rule.length; r++) {
+		var rr = {};
+		var rur = rule[r];
+		rur.vv = vv;
+		rr.code = rur.vv('.r_code');
+		rr.name = rur.vv('.r_name');
+		rr.conditions = c_get(rur);
+		rr.actions = a_get(rur);
+		rules.push(rr);
+	}
+	ajaxPost('rconf='+encodeURIComponent(JSON.stringify(rules)),rule_saved);
+	console.log(JSON.stringify(rules));
+}
+function c_get(rur)
+{
+	var result = [];
+	var condition = $$('tbody.cond',rur)[0];
+	while (1) {
+		condition = condition.nextSibling;
+		if (condition.className=="act") break;
+		condition.vv = rur.vv;
+		var icondition = {};
+		icondition.cid = +condition.vv('.cond_sel');
+		icondition.ival = [];
+		var cparams = $$('.c_par',condition);
+		for (var r=0; r<cparams.length; r++) {
+			var cparam = cparams[r];
+			cparam.vv = rur.vv;
+			var ivals = cparam.vv('.cond',2);
+			icondition.ival = icondition.ival.concat(ivals);
+		}
+		result.push(icondition);
+	};
+	return result;
+}
+function a_get(rur)
+{
+	var result = [];
+	var action = $$('tbody.act',rur)[0];
+	while (1) {
+		action = action.nextSibling;
+		if (!action) break;
+		var iaction = {};
+		iaction.aid = +rur.vv.call(action,'.act_sel');
+		iaction.parm = [];
+		var aparms = $$('.a_par',action);
+		for (var r=0; r<aparms.length; r++) {
+			iaction.parm.push( rur.vv.call(aparms[r],'.act') );
+		}
+		result.push(iaction);
+	};
+	return result;
+}
+function rule_saved(req)
+{
+	var data = pjson(req);
+	if (!data) return;
+	if (data.result=='ok') location.assign("./index.html#modules");
+}
+// Get description of a module with a specified hwid, filter by io type (0=output only, 1=input only)
+function hwdescribe(hwid, io) {
+	var t = cEnv.supported;
+	for (var i=0; i<t.length; i++)
+		if (t[i].hwid==hwid && t[i].type==io) return t[i];
+}
+function rule_sz (sender)
+{
+	var v,p = $top(sender,'tbody');
+	v = sender.innerHTML;
+	while (p.nextSibling) {
+		p = p.nextSibling;
+		p.style.display = v=='-' ? 'none' : 'table-row-group';
+	}
+	sender.innerHTML = v=='-' ? '+' : '-';
+}
+// ---------------------------------------------------------------------------------------------------
+function cond_add (sender, cond)
+{
+	var i,p = $top(sender,'tbody');
+	while (p.className!="act") p = p.nextSibling;
+	var e = document.createElement("tbody");
+	var a = [{cid:1,txt:say('period')},{cid:2,txt:say('cron')}];
+	var t = cEnv.installed;
+	for (i=0; i<t.length; i++) {
+		var hwdescr = hwdescribe(t[i].hwid, 1);
+		if (hwdescr) a.push({cid:i+10, txt:'#'+(i+1)+': '+t[i].name||hwdescr.name});
+	}
+	if (cond) for (i=0; i<a.length; i++) if (a[i].cid==cond.cid) a[i].selected = 1;
+	e.innerHTML = nsTmpl.tmpl("cond_group",{a:a});
+	p.parentNode.insertBefore(e,p);
+	cond_sel($$(".cond_sel",e)[0], cond);
+}
+function cond_del (sender)
+{
+	$X($top(sender,'tbody'));
+}
+function cond_sel (sender, cond)
+{
+	var p = $top(sender,'tr');
+	while (p.nextSibling) $X(p.nextSibling);
+	var iv0, iv1, cid = sender.value||1;
+	var hwdescr = cid>=10 ? hwdescribe(cEnv.installed[cid-10].hwid,1) : {};
+	var units = cid<10 ? [0] : hwdescr.units;
+	for (var i=0; i<units.length; i++) {
+		var e = document.createElement("tr");
+		e.className="c_par";
+		iv0 = cond ? cond.ival[i*2+0] : '';
+		iv1 = cond ? cond.ival[i*2+1] : '';
+		if (hwdescr.protocol=="bit") for (var b=0; b<cEnv.binopts.length; b++) cEnv.binopts[b].selected = iv0==b ? 1 : 0;
+		if (cid==1) e.innerHTML = nsTmpl.tmpl("cond_period",{phold0:"mon 00:00:00",phold1:"sun 23:59:59", val0:$PR(iv0), val1:$PR(iv1)});
+		else if (cid==2) e.innerHTML = nsTmpl.tmpl("cond_cron",{phold:"nn hh dd mm dw yyyy", val:iv0});
+		else e.innerHTML = nsTmpl.tmpl("cond_pin",{txt:units[i], proto:hwdescr.protocol, val0:iv0, val1:iv1});
+		p.parentNode.insertBefore(e,p.nextSibling);
+		p = e;
+	}
+}
+// ---------------------------------------------------------------------------------------------------
+function act_add (sender, act)
+{
+	var e,a,t,p = $top(sender,'tbody');
+	e = document.createElement("tbody");
+	a = cEnv.sysacts.slice();
+	var t = cEnv.installed;
+	for (i=0; i<t.length; i++) {
+		var hwdescr = hwdescribe(t[i].hwid, 0);
+		if (hwdescr) a.push({aid:i+10, txt:'#'+(i+1)+': '+t[i].name||hwdescr.name});
+	}
+	if (act) for (i=0; i<a.length; i++) a[i].selected = a[i].aid==act.aid;
+	e.innerHTML = nsTmpl.tmpl('act_group',{a:a});
+	p.parentNode.insertBefore(e,null);
+	act_sel($$('.act_sel',e)[0], act.parm);
+}
+function cond_del (sender)
+{
+	$X($top(sender,'tbody'));
+}
+function act_sel (sender, act)
+{
+	// clear params
+	var p = $top(sender,'tr');
+	while (p.nextSibling) $X(p.nextSibling);
+	//
+	var tbody = $top(sender,'tbody');
+	var aid = sender.value||1;
+	var descr = aid<10 ? cEnv.sysacts[aid-1] : hwdescribe(cEnv.installed[aid-10].hwid, 0);
+	var a = descr.params;
+	for (var i=0; i<a.length; i++) {
+		var obj,val;
+		if (act) val = act[i];
+		var p = a[i].split(':');
+		var e = document.createElement("tr");
+		e.className = "a_par";
+		if (p[0]=='i') obj = {"phold":p[1],"txt":p[2],"val":val};
+		if (p[0]=='t') obj = {"phold":p[1],"val":val};
+		if (p[0]=='s') {
+			var pp=p[1].split('|'),arr=[];
+			for (var j=0; j<pp.length; j++)
+				arr.push({"txt":pp[j],"selected":val==j});
+			obj = {"opts":arr};
+		}
+		e.innerHTML = nsTmpl.tmpl("act_parm_"+p[0],obj);
+		tbody.appendChild(e);
+	}
+}
+function apply ()
+{
+	ajaxGetq('apply=1', data_ready);
+}
+</script>
+</head>
+<body onload="init()">
+	<div class="page">
+		<h1>Правила</h1>
+		<ul id="tabs"></ul>
+		<div id="space"></div>
+		<div id="footer"><div id="err"></div><div id="msg"></div></div>
+	</div>
+</body>
+
+<script class="tabitem" type="text/html">
+	<li class="tab" id="id-tab-<%=n%>" onclick="tab_switch('<%=n%>')"><%=say(n)%></li>
+</script>
+<script class="tblrow" type="text/html">
+	<tr class="row"><% if (t[0]!='2') { %><td class="cell"><%=n%></td><% } %><td class="cell" <%=(t[0]=='2'?'colspan=2':'')%>><%=nsTmpl.tmpl('fld_'+t.replace(/\d/,'' ),{obj:obj})%></td></tr>
+</script>
+<script class="fld_txt" type="text/html">
+	<span id="id-<%=obj.fld%>"></span>
+</script>
+<script class="fld_edit" type="text/html">
+	<input type="text" class="edit time" id="id-<%=obj.fld%>" value="<%=obj.v%>" <%=(obj.w?'style="width:'+obj.w+'"':'')%>/><%=(obj.suf?'&nbsp;'+obj.suf:'')%>
+</script>
+<script class="fld_chk" type="text/html">
+	<input type="checkbox" id="id-<%=obj.fld%>" class="chk" <%=(obj.v>0?"checked":"")%> style="transform:scale(1.5);"/>
+</script>
+<script class="fld_btn" type="text/html">
+	<% for(var i=0,_a=obj.b.split('|');i<_a.length;i++) { %>
+	<input type="button" class="btn" value="<%=_a[i]%>" onclick="<%=obj.click.replace('!',i)%>"/>&nbsp;
+	<% } %>
+</script>
+<script class="fld_list" type="text/html">
+	<table class="tbl" id="id-<%=obj.fld%>"></table>
+</script>
+<script class="rule_item" type="text/html">
+	<tr><td>
+		<table class="rule">
+			<tbody class="rhead">
+			<tr>
+				<td><div class="minmax" onclick="rule_sz(this)">-</div><%=say('code')%></td><td><input type="text" class="edit r_code" placeholder="<%=say('fchars')%>" value="<%=rule.code%>">&nbsp;<img src="remove.m.svg" class="ico ico-r" onclick="rule_del(this)" title="Delete rule"/></td>
+			</tr>
+			</tbody>
+			<tbody class="cond">
+			<tr>
+				<td><%=say('title')%></td><td><input type="text" class="edit r_name" placeholder="<%=say('rule_title')%>" value="<%=rule.name%>"></td>
+			</tr>
+			<tr class="gray">
+				<td><%=say('conditions').toUpperCase()%></td><td><img src="item-add.svg" class="ico" onclick="cond_add(this)" title="Add condition"/></td>
+			</tr>
+			</tbody>
+			<tbody class="act">
+			<tr class="gray">
+				<td><%=say('actions').toUpperCase()%></td><td><img src="item-add.svg" class="ico" onclick="act_add(this)" title="Add action"/></td>
+			</tr>
+			</tbody>
+		</table>
+	</td></tr>
+</script>
+<script class="sel_opt" type="text/html">
+	<option value="<%=(typeof(id)=='undefined'?_index:id)%>"<%=(obj.selected?' selected':'')%>><%=txt%></option>
+</script>
+<script class="cond_opt" type="text/html">
+	<option value="<%=(typeof(cid)=='undefined'?_index:cid)%>"<%=(obj.selected?' selected':'')%>><%=txt%></option>
+</script>
+<script class="cond_group" type="text/html">
+	<tr><td>&#9654;</td><td><select class="cond_sel" onchange="cond_sel(this)">'<%=nsTmpl.tmplr('cond_opt',a)%></select><img src="item-del.svg" class="ico ico-r" onclick="cond_del(this)" title="Delete condition"/></td></tr>
+</script>
+<script class="cond_period" type="text/html">
+	<td>&nbsp;</td><td><input type="text" class="edit cond time" placeholder="<%=phold0%>" value="<%=obj.val0%>">&nbsp;<input type="text" class="edit cond time" placeholder="<%=phold1%>" value="<%=obj.val1%>"></td>
+</script>
+<script class="cond_cron" type="text/html">
+	<td>&nbsp;</td><td><input type="text" class="edit cond cron" placeholder="<%=phold%>" value="<%=obj.val%>"></td>
+</script>
+<script class="cond_pin" type="text/html">
+	<td><%=txt%></td><td><% if (proto=="bit") { %><select class="cond"><%=nsTmpl.tmplr('sel_opt',cEnv.binopts)%></select><% } else { %><input class="edit cond ival ival0" value="<%=obj.val0%>">&nbsp;...&nbsp;<input class="edit cond ival ival1" value="<%=obj.val1%>"><% } %></td></tr><tr>
+</script>
+<script class="act_opt" type="text/html">
+	<option value="<%=(typeof(aid)=='undefined'?_index:aid)%>"<%=(obj.selected?' selected':'')%>><%=txt%></option>
+</script>
+<script class="act_group" type="text/html">
+	<tr><td>&#9654;</td><td><select class="act_sel" onchange="act_sel(this)">'<%=nsTmpl.tmplr('act_opt',a)%></select><img src="item-del.svg" class="ico ico-r" onclick="cond_del(this)" title="Delete action"/></td></tr>
+</script>
+<script class="act_parm_i" type="text/html">
+	<td>&nbsp;</td><td><input type="text" class="edit iparm act" placeholder="<%=phold%>" value="<%=val%>">&nbsp;<span class="punit"><%=txt%></span></td>
+</script>
+<script class="act_parm_t" type="text/html">
+	<td>&nbsp;</td><td><input type="text" class="edit act" placeholder="<%=phold%>" value="<%=val%>"></td>
+</script>
+<script class="act_parm_s" type="text/html">
+	<td>&nbsp;</td><td><select class="act"><%=nsTmpl.tmplr('sel_opt',opts)%></select></td>
+</script>
+
+</html>

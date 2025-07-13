@@ -1,0 +1,46 @@
+[
+		{
+				"code": "LON",
+				"name": "Motion activated light",
+				"conditions": [
+						{ "cid": 15, "ival": [ "25","30","40","70" ] },
+						{ "cid": 11, "ival": [ "50","999" ] },
+						{ "cid": 1,  "ival": [ "1:0:0:0", "7:23:59:59" ] }
+				],
+				"actions": [
+						{ "aid": 12, "parm": [ "1" ] },
+						{ "aid": 13, "parm": [ "" ] },
+						{ "aid": 6,  "parm": [ "Light is on" ] },
+						{ "aid": 1,  "parm": [ "300", "LOFF" ] }
+				]
+		},
+		{
+				"code": "LOFF",
+				"name": "Light off",
+				"conditions": [],
+				"actions": [
+						{ "aid": 12, "parm": [ "0" ] },
+						{ "aid": 13, "parm": [ "0" ] }
+				]
+		},
+		{
+				"code": "ALM1",
+				"name": "Alarm on",
+				"conditions": [
+						{ "cid": 1, "ival": [ "","0:0:0:0" ] }
+				],
+				"actions": [
+						{ "aid": 14, "parm": [ "2000","5000" ] },
+						{ "aid": 1,  "parm": [ "120","ALM2" ] }
+				]
+		},
+		{
+				"code": "ALM2",
+				"name": "Alarm off",
+				"conditions": [],
+				"actions": [
+						{ "aid": 14, "parm": [ "0","0" ] }
+				]
+		}
+]
+

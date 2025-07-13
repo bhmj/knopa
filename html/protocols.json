@@ -1,0 +1,38 @@
+[
+  { "protocol":"pwm",
+    "gpios": 1
+  },
+  { "protocol":"mpwm",
+    "gpios": 1
+  },
+  { "protocol":"bit",
+    "gpios": 1
+  },
+  { "protocol":"bitc",
+    "gpios": 1
+  },
+  { "protocol":"adc",
+    "gpios": 0
+  },
+  { "protocol":"1-wire",
+    "gpios": 1
+  },
+  { "protocol":"1-wire*",
+    "gpios": 1
+  },
+  { "protocol":"i2c",
+    "gpios": 1
+  },
+  { "protocol":"spi",
+    "gpios": 1
+  },
+  { "protocol":"sg90",
+    "gpios": 1,
+    "proto":"pwm",
+    "bounds": [0,180],
+    "cycle": 20000,
+    "dutybase": 1000,
+    "dutymul": 1000,
+    "dutydiv": 180
+  }
+]

@@ -1,0 +1,246 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name=viewport content="width=device-width, initial-scale=1">
+<title>Knopa.FS</title>
+<link rel="stylesheet" type="text/css" href="/knopa.css"/>
+<script type="text/javascript" src="/knopa.js"></script>
+<script type="text/javascript">
+function init()
+{
+  var tabs = [{n:"Memory"},{n:"Files"},{n:"WiFi"}];
+  var lines = [
+    [
+      {n:"Start", t:"edit", fld:"mfrom", w:"8em"},
+      {n:"Length", t:"edit", fld:"mlen", w:"8em"},
+      {n:"", t:"btn", b:"Dump", click:"mem_dump(this)"}
+    ],
+    [
+      {n:"", t:"2file", b:"Select file"},
+      {n:"", t:"2btn", b:"Upload", click:"upload(this)"},
+      {t:"2list", fld:"files"}
+    ],
+    [
+      {n:"SSID", t:"edit", fld:"wifissid"},
+      {n:"Password", t:"pwd", fld:"wifipass"},
+      {n:"&nbsp;", t:"btn",b:"Connect", click:"save_wifi()"}
+    ]
+  ];
+  $('tabs').innerHTML = nsTmpl.tmplr("tab",tabs);
+  tabs = $$('.tab');
+  for (var i=0; i<tabs.length; i++) {
+    var e = document.createElement('div');
+    e.className = 'sheet '+(i?'':'sel');
+    e.innerHTML = '<table class="tbl">' + nsTmpl.tmplr("tblrow",lines[i]) + '</table>';
+    $('space').appendChild(e);
+  }
+  tab_switch(tabs[0]);
+
+  // Connection
+  ajaxGet('/kfs', 'read=1', data_ready);
+}
+function data_ready (req, quiet)
+{
+  var data = pjson(req);
+  if (!data) return;
+
+  for (var name in data) {
+    if (data.hasOwnProperty(name)) {
+      var dn = data[name];
+      var e = $('id-'+name);
+      if (e) {
+        if (e.tagName=='INPUT')
+          if (e.type=='checkbox') e.checked = dn;
+          else e.value = dn;
+        if (e.tagName=='SPAN') e.innerHTML = dn;
+        if (e.tagName=='SELECT') e.selectedIndex = dn;
+      }
+      cEnv[name] = dn;
+    }
+  }
+  if (!quiet) msg("",1);
+  show_dir();
+}
+function tab_switch (sender)
+{
+  var tabs = $$('.tab');
+  var shts = $$('.sheet');
+  for (var i=0; i<tabs.length; i++) {
+    tabs[i].className = tabs[i]==sender ? "tab sel" : "tab";
+    shts[i].className = tabs[i]==sender ? "sheet sel" : "sheet";
+  }
+}
+function peep (sender) {
+  var ed = sender.previousSibling.previousSibling;
+  ed.type = (ed.type=="text"?"password":"text");
+}
+function show_dir ()
+{
+  var dir = cEnv.dir;
+  if (!dir) return;
+  $('id-files').innerHTML = '<table class="tbl"><tr><th>Name</th><th>Size</th><th>&nbsp;</th></tr>' + nsTmpl.tmplr("dir",dir) + '</table>';
+}
+function file_change (sender)
+{
+  cEnv.file = sender.value.replace('C:\\fakepath\\','');
+  $('id-fbtn').value = cEnv.file || 'Select file';
+}
+function upload (sender)
+{
+  var files = $('id-file').files;
+  if (!files.length) {
+    err('File not selected');
+    return;
+  }
+  $('form_upload').submit();
+}
+function uploaded (req)
+{
+  if (req) {
+    msg('Upload OK');
+//    ajaxGetq('/kfs', 'read=1', data_ready, 1);
+  } else {
+    err('Upload error');
+  }
+}
+function mem_dump ()
+{
+  window.location = "kfs?dump=1"+$vV('memstart')+$V('memlen');
+}
+function save_wifi ()
+{
+  ajaxGet('/','wifi=1'+$vV('wifissid')+$vV('wifipass')+$vV('wifibssid'), save_cb);
+}
+function save_cloud ()
+{
+  ajaxGet('/','cloud=1'+$vV('clserv1')+$vV('cluser1')+$vV('clpass1')+$vV('clserv2')+$vV('cluser2')+$vV('clpass2')+$vV('clconn')+$vV('clsync'), save_cb);
+}
+function save_ntp ()
+{
+  ajaxGet('/','ntp=1'+$vV('ntps1')+$vV('ntps2')+$vV('ntps3')+$vV('tz'), save_cb);
+}
+function save_pins (cb)
+{
+  var a = $$('select',$('id-pins'));
+  cEnv.pinid = [];
+  cEnv.pintype = [];
+  for (var i=0; i<a.length; i++) {
+    if (a[i].className=='pintype') cEnv.pintype.push(a[i].value); else cEnv.pinid.push(a[i].value);
+  }
+  ajaxGet('/','pins='+cEnv.pinid.join("+")+'&types='+cEnv.pintype.join("+"), cb?cb:save_cb);
+}
+function reboot ()
+{
+  ajaxGet('/','reboot=1');
+  msg("Device rebooted");
+}
+function wifi_scan ()
+{
+  ajaxGet('/','scan=1', wifi_scan_cb);
+}
+function wifi_scan_cb (req)
+{
+  var data = pjson(req);
+  if (!data) return;
+  var head = { ssid:"SSID",ch:"Channel",rssi:"Signal, dB", sec:"Security" };
+  data.sort(function(a,b){a.rssi|=0;b.rssi|=0;return (a.rssi<b.rssi)?1:((a.rssi>b.rssi)?-1:0);});
+  $('id-aps').innerHTML = nsTmpl.tmpl("apitem",head) + nsTmpl.tmplr("apitem",data);
+  msg();
+}
+function wifi_connect (on)
+{
+  msg("Switching WiFi...");
+  ajaxGetq('/','conn=1&on='+(1-on));
+}
+function save_cb (req)
+{
+  var data = pjson(req);
+  if (!data) return;
+  if (data.result="ok") msg("Saved"); else err("Error");
+}
+function pin_add (obj)
+{
+  var a = $$('.pinnum');
+  var v = a.length ? (a[a.length-1].value|0) : 0;
+  var t = 0;
+  if (obj) { v=obj.id; for(var k=0; k<cEnv.hwtype.length; k++) if (cEnv.hwtype[k].id==obj.type) t=k; }
+  var e = document.createElement("tr");
+  e.innerHTML = nsTmpl.tmpl("pinitem",{});
+  $$('.pinnum',e)[0].selectedIndex = v%16;
+  $$('.pintype',e)[0].selectedIndex = t%16;
+  $('id-pins').appendChild(e);
+}
+function pin_del (sender)
+{
+  $X($top(sender,"tr"));
+}
+function pin_cfg (sender)
+{
+  function saved (pin)
+  {
+    location.href = "/kconfig.2.html?pin="+pin;
+  }
+  var v = $$('.pinnum',$top(sender,'tr'))[0].value;
+  save_pins (saved.bind(this,v));
+}
+</script>
+</head>
+<body onload="init()">
+  <div class="page">
+    <h1>KFS</h1>
+    <ul id="tabs"></ul>
+    <div id="space"></div>
+    <div id="footer"><div id="err"></div><div id="msg"></div></div>
+  </div>
+</body>
+
+<script class="tab" type="text/html">
+  <li class="tab" onclick="tab_switch(this)"><%=n%></li>
+</script>
+<script class="tblrow" type="text/html">
+  <tr class="row"><% if (t[0]!='2') { %><td class="cell"><%=n%></td><% } %><td class="cell" <%=(t[0]=='2'?'colspan=2':'')%>><%=nsTmpl.tmpl('fld_'+t.replace(/\d/,'' ),{obj:obj})%></td></tr>
+</script>
+<script class="fld_txt" type="text/html">
+  <span id="id-<%=obj.fld%>"></span>
+</script>
+<script class="fld_edit" type="text/html">
+  <input class="edit" type="text" id="id-<%=obj.fld%>" <%=obj.ph?'placeholder="'+obj.ph+'"':''%> value="<%=obj.v%>" <%=(obj.w?'style="width:'+obj.w+';min-width:'+obj.w+'"':'')%>/><%=(obj.suf?'&nbsp;'+obj.suf:'')%>
+</script>
+<script class="fld_pwd" type="text/html">
+  <nobr><input class="pwd" type="password" id="id-<%=obj.fld%>" value="<%=obj.v%>" <%=(obj.w?'style="width:'+obj.w+';min-width:'+obj.w+'"':'')%>/>&nbsp;<img src="/eye.m.svg" class="ico" onclick="peep(this)" style="vertical-align:middle;"/></nobr>
+</script>
+<script class="fld_chk" type="text/html">
+  <input type="checkbox" id="id-<%=obj.fld%>" class="chk" <%=(obj.v>0?"checked":"")%> style="transform:scale(1.5);"/>
+</script>
+<script class="fld_cb" type="text/html">
+  <select id="id-<%=obj.fld%>">
+  <% for(var i=0,_a=obj.v.split('|');i<_a.length;i++) { %>
+  <option value="<%=i%>"><%=_a[i]%></option>;
+  <% } %>
+  </select>
+</script>
+<script class="fld_btn" type="text/html">
+  <% for(var i=0,_a=obj.b.split('|');i<_a.length;i++) { %>
+  <input type="button" class="btn" value="<%=_a[i]%>" onclick="<%=obj.click.replace('!',i)%>"/>&nbsp;
+  <% } %>
+</script>
+<script class="fld_file" type="text/html">
+  <div class="file_upload"><form id="form_upload" method="post" enctype="multipart/form-data" action="upload.php"><input id="id-fbtn" type="button" class="btn" value="<%=obj.b%>"><input id="id-file" type="file" name="file" onchange="file_change(this)"><iframe id="upload_target" name="upload_target" src="" style="width:0;height:0;border:0px solid #fff;"></iframe></form></div>
+</script>
+<script class="dir" type="text/html">
+  <tr><td><%=fname%></td><td><%=fsize%></td><td>[DEL]</td></tr>
+</script>
+<script class="fld_list" type="text/html">
+  <table class="tbl" id="id-<%=obj.fld%>"></table>
+</script>
+<script class="apitem" type="text/html">
+  <tr><td><b><%=ssid%></b></td><td><%=ch%></td><td><%=rssi%></td><td><%=sec%></td></tr>
+</script>
+<script class="pinitem" type="text/html">
+  <td><select class="pinnum"><%=nsTmpl.tmplr('selopt',cEnv.gpio)%></select></td><td width="90%"><select class="pintype"><%=nsTmpl.tmplr('selopt',cEnv.hwtype)%></select></td><td><img src="/config.m.svg" class="ico" onclick="pin_cfg(this)" title="Configure logic"></td><td><img src="/remove.m.svg" class="ico" onclick="pin_del(this)" title="Do not use this pin"/></td>
+</script>
+<script class="selopt" type="text/html">
+  <option value="<%=id%>"><%=name%></option>
+</script>
+
+</html>
